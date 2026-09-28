@@ -1,0 +1,44 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  color: #eee;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  width: min(480px, 90vw);
+  text-align: center;
+}
+
+#orb {
+  display: block;
+  width: 260px;
+  height: 260px;
+  margin: 0 auto 1.5rem;
+  cursor: pointer;
+  background: transparent;
+}
+
+#interim {
+  min-height: 1.4em;
+  opacity: 0.5;
+  font-style: italic;
+}
+
+#log {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  text-align: left;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+#log li {
+  padding: 0.4em 0;
+  border-bottom: 1px solid #333;
+}
