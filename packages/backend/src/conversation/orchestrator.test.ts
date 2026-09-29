@@ -367,4 +367,17 @@ describe("Orchestrator", () => {
       { type: "interrupted" },
     ]);
   });
+
+  it("クライアントの位置情報を受け取ったら Live に文脈として注入する", async () => {
+    const { live, orch } = await setup();
+    orch.handleClient({
+      type: "client_context",
+      location: { latitude: 35.6895, longitude: 139.6917, address: "東京都 新宿区 西新宿" },
+    });
+    await flush();
+    expect(live.sent.at(-1)).toEqual({
+      kind: "context",
+      text: "現在地: 東京都 新宿区 西新宿（緯度 35.6895, 経度 139.6917）",
+    });
+  });
 });

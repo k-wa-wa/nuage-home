@@ -16,13 +16,15 @@ export interface SpeechBubble {
   markInterrupted(): void;
 }
 
+export type TimerHandle = ReturnType<typeof setTimeout> | number;
+
 export interface TypedSpeechOptions {
   view: SpeechView;
   onPlaying: (playing: boolean) => void;
   /** 1 秒あたりに表示する文字数 */
   charsPerSecond: () => number;
-  setTimer?: (fn: () => void, ms: number) => unknown;
-  clearTimer?: (id: unknown) => void;
+  setTimer?: (fn: () => void, ms: number) => TimerHandle;
+  clearTimer?: (id: TimerHandle) => void;
 }
 
 export class TypedSpeech {
@@ -32,7 +34,7 @@ export class TypedSpeech {
   private playing = false;
   /** 割り込んだターンの残りを捨てている最中か */
   private discarding = false;
-  private timer: unknown = null;
+  private timer: TimerHandle | null = null;
   private readonly opts: TypedSpeechOptions;
 
   constructor(opts: TypedSpeechOptions) {

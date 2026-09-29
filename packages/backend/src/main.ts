@@ -25,7 +25,7 @@ registerRoutes(app, {
     tools: createResearchTools(config.bwproxyUrl),
     logger: app.log,
   }),
-  liveTools: createLiveTools(config.bwproxyUrl),
+  liveTools: createLiveTools(),
   llmSummarizer: withFallback(
     createLlmSummarizer(summaryChat),
     plainSummarizer,

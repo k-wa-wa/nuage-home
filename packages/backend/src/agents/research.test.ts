@@ -137,9 +137,16 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("01:05");
   });
 
-  test("システムプロンプトの Golden テスト", () => {
+  test("システムプロンプトの Golden テスト（位置情報なし）", () => {
     const golden = goldenIn(import.meta.url);
     const fixedDate = new Date("2026-09-29T10:00:00+09:00");
     golden("research_prompt", buildSystemPrompt(fixedDate));
+  });
+
+  test("システムプロンプトの Golden テスト（位置情報あり）", () => {
+    const golden = goldenIn(import.meta.url);
+    const fixedDate = new Date("2026-09-29T10:00:00+09:00");
+    const location = { latitude: 35.6895, longitude: 139.6917, address: "東京都 新宿区 西新宿" };
+    golden("research_prompt_with_location", buildSystemPrompt(fixedDate, location));
   });
 });

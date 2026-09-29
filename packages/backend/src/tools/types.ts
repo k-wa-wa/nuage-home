@@ -10,14 +10,14 @@ export interface ToolParameters {
   required?: string[];
 }
 
-/** LLM が生成したツール引数。値の型は保証されないため各ツールで検証する */
+/** LLM が生成したツール引数の基底型 */
 export type ToolArgs = Record<string, unknown>;
 
-export interface ToolDefinition {
+export interface ToolDefinition<TArgs extends ToolArgs = ToolArgs> {
   name: string;
   description: string;
   parameters: ToolParameters;
-  execute: (args: ToolArgs) => Promise<string>;
+  execute: (args: TArgs) => Promise<string>;
 }
 
 export interface OpenAITool {

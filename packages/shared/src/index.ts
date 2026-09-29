@@ -65,8 +65,14 @@ export interface ConversationModes {
 // WebSocket メッセージ
 // ---------------------------------------------------------------------------
 
+export interface ClientLocation {
+  latitude: number;
+  longitude: number;
+  address?: string;
+}
+
 export type ConversationClientMessage =
-  /** 発話を始めた（音声モードは VAD、サンドボックスは入力開始） */
+  /** ユーザーが話し始めた */
   | { type: "speech_start" }
   /** 発話を取り消した（ノイズ） */
   | { type: "speech_cancel" }
@@ -78,6 +84,8 @@ export type ConversationClientMessage =
   | { type: "user_turn"; text: string }
   /** Live の発話の再生状態（音声モードは実際の再生、サンドボックスは擬似読み上げ） */
   | { type: "playback_state"; playing: boolean }
+  /** クライアントのコンテキスト（位置情報など） */
+  | { type: "client_context"; location?: ClientLocation }
   /** 裏で動くアプリを経由しない通知を手動で発生させる（動作確認用） */
   | { type: "debug_notify"; priority: NotificationPriority; summary: string }
   /** タスクと通知をすべて消す（実行中のタスクは中止する） */
@@ -89,7 +97,7 @@ export type LiveIoRecord =
   | { kind: "context"; text: string }
   | { kind: "prompt"; text: string }
   | { kind: "tool_call"; name: string; args: Record<string, unknown> }
-  | { kind: "tool_response"; name: string; response: unknown };
+  | { kind: "tool_response"; name: string; response: Record<string, unknown> | string };
 
 export type ConversationServerMessage =
   | { type: "ready"; modes: ConversationModes }

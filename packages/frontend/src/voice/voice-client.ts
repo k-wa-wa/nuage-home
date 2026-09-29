@@ -109,6 +109,9 @@ export class VoiceClient {
 
     const ws = new WebSocket(this.url);
     this.ws = ws;
+    ws.onopen = () => {
+      this.sendLocation();
+    };
     ws.onmessage = (event) =>
       this.handle(JSON.parse(String(event.data)) as ConversationServerMessage);
     ws.onerror = () => this.stop(new Error("会話サーバーへの接続に失敗した"));
@@ -118,6 +121,26 @@ export class VoiceClient {
         this.stop(new Error(`切断された (${event.code} ${event.reason})`));
       else this.stop();
     };
+  }
+
+  private sendLocation(): void {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          this.send({
+            type: "client_context",
+            location: {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            },
+          });
+        },
+        () => {
+          // 位置情報の取得拒否または失敗時は何もしない
+        },
+        { timeout: 5000, maximumAge: 300_000 },
+      );
+    }
   }
 
   stop(error?: Error): void {

@@ -3,9 +3,9 @@ import { TUNING } from "../constants.ts";
 /**
  * bare-web-proxy（bwproxy）経由のページ取得。
  * プログラムモード（X-Program-Mode: true）で、ナビゲーションや装飾を落とした軽量 HTML を受け取る。
- * 検索エンジンは Yahoo! JAPAN を使う（ブラウザを名乗らなくても安定して結果が取れる）。
- * bwproxy は呼び出し元の User-Agent をヘッドレス Chrome にそのまま使わせるため、bwproxy の `q=`（DuckDuckGo）は
- * ブラウザ以外の User-Agent ではボット判定で弾かれる。Brave Search は連続アクセスで弾かれた（2026-09-29 の実測）。
+ * 検索エンジンは Yahoo! JAPAN を使う（呼び出し元の User-Agent に関係なく安定して結果が取れる）。
+ * bwproxy の `q=`（DuckDuckGo）は、bwproxy が呼び出し元の User-Agent を使っていたためボット判定で弾かれていた。
+ * プログラムモードでは既定のブラウザの User-Agent を使うよう bwproxy を変更した（2026-09-29、要デプロイ）。
  */
 
 export class BwproxyError extends Error {}

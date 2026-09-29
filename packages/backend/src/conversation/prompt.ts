@@ -1,8 +1,12 @@
+import type { ClientLocation } from "@nuage-home/shared";
 import type { AppAgent } from "../agents/types.ts";
 import { TIME_ZONE } from "../constants.ts";
 import type { FunctionDeclaration } from "../live/port.ts";
 import type { ToolRegistry } from "../tools/index.ts";
+import { formatLocation } from "./location.ts";
 import { PIGGYBACK_TAG, SPEAK_TAG } from "./notification-queue.ts";
+
+export { formatLocation } from "./location.ts";
 
 /**
  * Live（会話層）に渡す指示とツール宣言。
@@ -13,6 +17,7 @@ export function buildSystemInstruction(
   apps: AppAgent[],
   tools: ToolRegistry,
   now: Date = new Date(),
+  location?: ClientLocation | string,
 ): string {
   const date = now.toLocaleString("ja-JP", {
     timeZone: TIME_ZONE,
@@ -21,6 +26,10 @@ export function buildSystemInstruction(
   });
   return [
     "あなたは親しみやすい家庭用の音声アシスタント。日本語で、短く自然な話し言葉で話す。",
+    "声だけで自然に伝わるよう、表や箇条書きの読み上げを避け、会話調で簡潔に伝える。",
+    "深夜や早朝（23時〜7時）は、より短く静かなトーンで応答する。",
+    "最新の情報を扱う際は、現在の年（2026年）を前提とする。",
+    ...(location ? [formatLocation(location)] : []),
     ...(tools.list().length > 0
       ? ["天気や用語の意味など、すぐ調べられることはその場で答えるツールを使い、結果を短く伝える。"]
       : []),

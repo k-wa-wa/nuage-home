@@ -1,4 +1,6 @@
+import type { ClientLocation } from "@nuage-home/shared";
 import { TIME_ZONE, TUNING } from "../constants.ts";
+import { formatLocation } from "../conversation/prompt.ts";
 import type { ChatFn, LlmMessage } from "../llm/client.ts";
 import type { ToolArgs, ToolRegistry } from "../tools/index.ts";
 import type { AppAgent } from "./types.ts";
@@ -27,7 +29,10 @@ export function createResearchAgent(deps: ResearchDeps): AppAgent {
 /**
  * 日本の現在日時と曜日を埋め込んだシステムプロンプト
  */
-export function buildSystemPrompt(now: Date = new Date()): string {
+export function buildSystemPrompt(
+  now: Date = new Date(),
+  location?: ClientLocation | string,
+): string {
   const date = now.toLocaleDateString("ja-JP", {
     timeZone: TIME_ZONE,
     year: "numeric",
@@ -44,6 +49,8 @@ export function buildSystemPrompt(now: Date = new Date()): string {
     "あなたは調査担当のエージェントである。与えられた依頼を、ツールで情報を集めて調べ、日本語の調査レポートにまとめる。",
     "レポートは後で音声向けに要約されるため、結論と根拠を先に書き、冗長にしない。",
     "必要な情報が集まったら追加の検索はせず、速やかにレポートを書く。",
+    "最新の情報を検索・調査する際は、現在の年（2026年）を前提とする。",
+    ...(location ? [formatLocation(location)] : []),
     `現在日時: ${date} ${time}`,
   ].join("\n");
 }

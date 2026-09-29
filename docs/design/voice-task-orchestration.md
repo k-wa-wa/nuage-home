@@ -304,7 +304,7 @@ frontend は、音声モード（`main.ts`・`voice/`）とサンドボックス
 - **音声のまとめ送りではユーザー発話の書き起こしが返らない**: 発話の音声を `clientContent` で 1 ターンにまとめて送る方式では、`inputAudioTranscription` を有効にしても Gemini の書き起こし（`inputTranscription`）が届かなかった（2026-09-29、音声モードの通し確認）。画面のユーザー発話はブラウザの音声認識の結果で表示している。
 - **調査レポートは Markdown で返る**: 調査エージェントのレポートは見出し・強調付きの Markdown になる。LLM 要約が上限時間を超えて簡易要約になると記号が混ざるため、簡易要約で見出し・強調・箇条書きの記号を落とすようにした。
 - **Web 検索は bare-web-proxy 経由の Yahoo! JAPAN にした**: 当初の DuckDuckGo Instant Answer は時事的な話題で空振りした（「最近の量子コンピュータの動向」）。bare-web-proxy（プログラムモード）経由で各検索エンジンを試した結果（2026-09-29）:
-  - DuckDuckGo（bwproxy の `q=` の既定）: ボット判定ページが返った。原因は IP ではなく User-Agent である。bwproxy は呼び出し元の User-Agent をヘッドレス Chrome にそのまま使わせるため、curl の User-Agent では弾かれ、iPhone の Safari の User-Agent では結果が取れた（スマホから開くと問題が起きないのはこのため）。ブラウザを名乗ってボット判定を避けることはしない
+  - DuckDuckGo（bwproxy の `q=` の既定）: ボット判定ページが返った。原因は IP ではなく User-Agent である。bwproxy は呼び出し元の User-Agent をヘッドレス Chrome にそのまま使わせるため、curl の User-Agent では弾かれ、iPhone の Safari の User-Agent では結果が取れた（スマホから開くと問題が起きないのはこのため）。bare-web-proxy 側で、プログラムモードでは既定のデスクトップ Chrome の User-Agent を使うよう変更した（ローカル検証で、curl の User-Agent のままでも結果 10 件を取得）
   - Google: 本文が返らない
   - Bing: 結果は取れるがリンクが転送 URL
   - Brave Search: 5 回中 1 回しか成功しない（連続アクセスで 500）

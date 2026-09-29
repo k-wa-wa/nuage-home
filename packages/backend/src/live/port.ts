@@ -20,10 +20,27 @@ export interface LiveToolCall {
   args: Record<string, unknown>;
 }
 
+export interface TaskStatusItem {
+  app?: string;
+  instruction?: string;
+  status?: string;
+  summary?: string;
+}
+
+export interface LiveToolResult {
+  status?: string;
+  result?: string;
+  error?: string;
+  message?: string;
+  instruction?: string;
+  tasks?: TaskStatusItem[];
+  [key: string]: unknown;
+}
+
 export interface LiveToolResponse {
   id: string;
   name: string;
-  response: Record<string, unknown>;
+  response: LiveToolResult;
 }
 
 /** ユーザーの 1 発話。音声モードは音声（16kHz PCM）、サンドボックスはテキスト */

@@ -11,6 +11,7 @@ import type { Summarizer } from "../tasks/summarizer.ts";
 import type { ToolRegistry } from "../tools/index.ts";
 import { type Floor, type FloorEvent, initialFloor, reduceFloor } from "./floor.ts";
 import type { OrchestrationHub } from "./hub.ts";
+import { formatLocation, reverseGeocode } from "./location.ts";
 import { buildSystemInstruction, buildTools } from "./prompt.ts";
 
 /**
@@ -117,6 +118,18 @@ export class Orchestrator {
         return;
       case "debug_notify":
         this.opts.hub.notify({ priority: msg.priority, summary: msg.summary });
+        return;
+      case "client_context":
+        if (msg.location) {
+          const { latitude, longitude } = msg.location;
+          void (async () => {
+            const address = msg.location?.address ?? (await reverseGeocode(latitude, longitude));
+            const loc = { latitude, longitude, address: address ?? undefined };
+            const text = formatLocation(loc);
+            this.opts.live.sendContext(text);
+            this.record({ kind: "context", text });
+          })();
+        }
         return;
       case "reset":
         this.opts.hub.reset();

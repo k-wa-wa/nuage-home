@@ -2,10 +2,14 @@ import { TUNING } from "../constants.ts";
 import { fetchViaBwproxy, parseYahooResults, yahooSearchUrl } from "./bwproxy.ts";
 import type { ToolDefinition } from "./types.ts";
 
+export interface WebSearchArgs extends Record<string, unknown> {
+  query?: string;
+}
+
 /**
  * Web 検索ツール。bwproxy 経由で Yahoo! JAPAN を検索し、上位の結果（タイトル・URL・抜粋）を返す。
  */
-export function createWebSearchTool(bwproxyUrl: string): ToolDefinition {
+export function createWebSearchTool(bwproxyUrl: string): ToolDefinition<WebSearchArgs> {
   return {
     name: "web_search",
     description:

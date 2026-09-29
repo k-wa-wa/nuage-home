@@ -2,11 +2,15 @@ import { TUNING } from "../constants.ts";
 import { fetchViaBwproxy, htmlToText } from "./bwproxy.ts";
 import type { ToolDefinition } from "./types.ts";
 
+export interface FetchPageArgs extends Record<string, unknown> {
+  url?: string;
+}
+
 /**
  * ページ本文の取得ツール。bwproxy 経由でページを読み、本文テキストを返す。
  * 本文は長いため、調査エージェント専用とし、会話層（Live）には渡さない。
  */
-export function createFetchPageTool(bwproxyUrl: string): ToolDefinition {
+export function createFetchPageTool(bwproxyUrl: string): ToolDefinition<FetchPageArgs> {
   return {
     name: "fetch_page",
     description:

@@ -343,6 +343,23 @@ function connect() {
   });
   const socket = new WebSocket(`${config.sandboxWsUrl}?${query}`);
   ws = socket;
+  socket.addEventListener("open", () => {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          send({
+            type: "client_context",
+            location: {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            },
+          });
+        },
+        () => {},
+        { timeout: 5000, maximumAge: 300_000 },
+      );
+    }
+  });
   socket.addEventListener("message", (e) => {
     if (ws === socket) handle(JSON.parse(String(e.data)) as ConversationServerMessage);
   });

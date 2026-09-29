@@ -42,6 +42,13 @@ describe("Live 会話層プロンプトの Golden テスト", () => {
     golden("live_instruction", instruction);
   });
 
+  test("buildSystemInstruction: 位置情報あり", () => {
+    const tools = new ToolRegistry([sampleTool]);
+    const location = { latitude: 35.6895, longitude: 139.6917, address: "東京都 新宿区 西新宿" };
+    const instruction = buildSystemInstruction(sampleApps, tools, fixedDate, location);
+    golden("live_instruction_with_location", instruction);
+  });
+
   test("buildSystemInstruction: 最小（アプリ・ツールなし）", () => {
     const tools = new ToolRegistry([]);
     const instruction = buildSystemInstruction([], tools, fixedDate);
