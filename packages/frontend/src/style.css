@@ -1,87 +1,73 @@
-body {
-  margin: 0;
-  min-height: 100vh;
+/* 音声モードのレイアウト。色・チップ・一覧は ui/theme.css */
+
+.voice {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 24px 16px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: #000000;
-  color: #eee;
-  font-family: system-ui, sans-serif;
+  gap: 8px;
 }
 
-main {
-  width: min(480px, 90vw);
-  text-align: center;
+.orb-wrapper {
+  cursor: pointer;
 }
 
 #orb {
   display: block;
-  width: 260px;
-  height: 260px;
-  margin: 0 auto 1.5rem;
-  cursor: pointer;
+  width: 240px;
+  height: 240px;
   background: transparent;
 }
 
-#interim {
+.status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.interim {
   min-height: 1.4em;
-  opacity: 0.5;
+  margin: 0;
+  opacity: 0.6;
   font-style: italic;
 }
 
-#log {
+.log {
+  width: 100%;
   list-style: none;
-  margin: 2rem 0 0;
+  margin: 8px 0 0;
   padding: 0;
-  text-align: left;
-  max-height: 40vh;
+  max-height: 30vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-#log li {
-  padding: 0.4em 0;
-  border-bottom: 1px solid #333;
-}
-
-.agent-card {
-  margin: 0.6rem 0;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  font-size: 0.82rem;
-  color: #ccc;
-}
-
-.agent-card summary {
-  cursor: pointer;
-  color: #64b5f6;
-  font-weight: 500;
-  outline: none;
-  user-select: none;
-}
-
-.agent-card-steps {
-  margin-top: 0.5rem;
-  padding-left: 0.5rem;
-  border-left: 2px solid rgba(100, 181, 246, 0.3);
-}
-
-.agent-step-item {
-  margin: 0.35rem 0;
-  line-height: 1.4;
-}
-
-.agent-step-tool {
-  color: #ffb74d;
-  font-weight: 500;
-}
-
-.agent-step-result {
-  color: #888;
-  font-size: 0.78rem;
-  margin-top: 0.15rem;
+.log > li {
+  line-height: 1.5;
   white-space: pre-wrap;
-  max-height: 100px;
-  overflow-y: auto;
+}
+
+.log-user::before {
+  content: "あなた: ";
+  color: var(--accent);
+}
+
+.log-assistant::before {
+  content: "アシスタント: ";
+  color: var(--info);
+}
+
+.log-error {
+  color: var(--danger);
+}
+
+.boards {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }

@@ -1,0 +1,131 @@
+/* 色・チップ・一覧（音声モードとサンドボックスで共用） */
+:root {
+  --bg: #0b0d10;
+  --surface: #151920;
+  --border: #262c36;
+  --text: #e6e8eb;
+  --muted: #8b93a1;
+  --accent: #6ea8fe;
+  --user: #1f3a5f;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --danger: #f85149;
+  --info: #a371f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+}
+
+button {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  button:hover {
+    border-color: var(--accent);
+  }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list > li {
+  line-height: 1.5;
+}
+
+.list-summary {
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.list-empty {
+  color: var(--muted);
+}
+
+details pre {
+  white-space: pre-wrap;
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.chip {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.chip[data-state="ok"],
+.chip[data-state="succeeded"],
+.chip[data-state="delivered"],
+.chip[data-state="idle"] {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.chip[data-state="running"],
+.chip[data-state="piggybacked"],
+.chip[data-state="speaking"],
+.chip[data-state="awaiting_model"],
+.chip[data-state="pending"],
+.chip[data-state="normal"] {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.chip[data-state="user_speaking"],
+.chip[data-state="user_turn"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip[data-state="model_speaking"],
+.chip[data-state="prompt"],
+.chip[data-state="context"] {
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.chip[data-state="failed"],
+.chip[data-state="interrupted"],
+.chip[data-state="urgent"],
+.chip[data-state="error"] {
+  border-color: var(--danger);
+  color: var(--danger);
+}

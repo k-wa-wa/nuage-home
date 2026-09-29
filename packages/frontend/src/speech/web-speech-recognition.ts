@@ -1,5 +1,3 @@
-import type { SpeechToText } from "./types.ts"
-
 // TS の DOM 型定義には SpeechRecognition 本体が無いため、使う範囲だけ定義する
 interface Recognition {
   lang: string
@@ -19,7 +17,11 @@ function getRecognitionCtor(): RecognitionCtor | undefined {
   return g.SpeechRecognition ?? g.webkitSpeechRecognition
 }
 
-export class WebSpeechRecognizer implements SpeechToText {
+/**
+ * ブラウザの音声認識。音声モードで、話している途中の文字（interim）を即座に表示するためだけに使う。
+ * 会話そのものの聞き取りは Gemini Live が行う。
+ */
+export class WebSpeechRecognizer {
   onFinal: (text: string) => void = () => {}
   onInterim: (text: string) => void = () => {}
   onListeningChange: (listening: boolean) => void = () => {}

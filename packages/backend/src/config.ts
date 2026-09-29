@@ -1,53 +1,63 @@
 import fs from "node:fs"
 import path from "node:path"
-import type { LlmClientOptions } from "./llm-client.ts"
-
-// .env ファイルの自動読み込み（カレントディレクトリおよび上位ディレクトリ）
-for (const envRelPath of [".env", "../../.env", "../.env"]) {
-  const envFullPath = path.resolve(process.cwd(), envRelPath)
-  if (fs.existsSync(envFullPath)) {
-    try {
-      process.loadEnvFile(envFullPath)
-    } catch {
-      // 構文エラー等があっても無視する
-    }
-  }
-}
+import { GEMINI_LIVE } from "./constants.ts"
 
 /**
- * Gemini Live API で動作確認済みのモデル名（models/gemini-3.8-live）へ正規化する
+ * 環境変数から設定を読む。既定値は持たず、無ければ起動時にエラーにする。
+ * 環境で変える必要のない調整値は constants.ts に置く。
  */
-function normalizeLiveModel(raw?: string): string {
-  if (!raw) return "models/gemini-3.8-live"
-  let m = raw.trim()
-  if (m === "models/gemini-3.8-flash-live" || m === "gemini-3.8-flash-live") {
-    return "models/gemini-3.8-live"
-  }
-  if (!m.startsWith("models/")) {
-    m = `models/${m}`
-  }
-  return m
+
+export interface LlmConfig {
+  baseUrl: string
+  apiKey: string
+  model: string
 }
 
 export interface Config {
   port: number
-  llm: LlmClientOptions
-  // LiteLLM に繋がらなくても UI を検証できるよう既定はモック。LITELLM_MOCK=false で実 LLM を使う
-  useMockLlm: boolean
+  llm: LlmConfig
+  /** 結果の要約に使うモデル（LiteLLM のモデル名）。応答の速いものを選ぶ */
+  summaryModel: string
+  /** bare-web-proxy のベース URL（Web 検索・ページ取得） */
+  bwproxyUrl: string
   geminiLive: {
     model: string
+    /** LiteLLM の Gemini Live パススルー（LITELLM_BASE_URL から導く） */
+    wsUrl: string
   }
 }
 
-export const config: Config = {
-  port: Number(process.env.PORT ?? 8787),
-  llm: {
-    baseUrl: process.env.LITELLM_BASE_URL ?? "https://litellm.wpcapp.net",
-    apiKey: process.env.LITELLM_API_KEY ?? "dummy",
-    model: process.env.LITELLM_MODEL ?? "auto",
-  },
-  useMockLlm: process.env.LITELLM_MOCK !== "false",
-  geminiLive: {
-    model: normalizeLiveModel(process.env.GEMINI_LIVE_MODEL),
-  },
+export function loadConfig(): Config {
+  loadEnvFiles()
+  const port = Number(required("PORT"))
+  if (!Number.isInteger(port)) throw new Error(`PORT must be an integer: ${process.env.PORT}`)
+  const llm = {
+    baseUrl: required("LITELLM_BASE_URL"),
+    apiKey: required("LITELLM_API_KEY"),
+    model: required("LITELLM_MODEL"),
+  }
+  return {
+    port,
+    llm,
+    summaryModel: required("LITELLM_SUMMARY_MODEL"),
+    bwproxyUrl: required("BWPROXY_URL").replace(/\/$/, ""),
+    geminiLive: {
+      model: required("GEMINI_LIVE_MODEL"),
+      wsUrl: `${llm.baseUrl.replace(/^http/, "ws").replace(/\/$/, "")}${GEMINI_LIVE.wsPath}`,
+    },
+  }
+}
+
+function required(name: string): string {
+  const value = process.env[name]?.trim()
+  if (!value) throw new Error(`${name} is required (packages/backend/.env.example を参照)`)
+  return value
+}
+
+/** カレントディレクトリおよび上位ディレクトリの .env を読み込む */
+function loadEnvFiles(): void {
+  for (const rel of [".env", "../.env", "../../.env"]) {
+    const full = path.resolve(process.cwd(), rel)
+    if (fs.existsSync(full)) process.loadEnvFile(full)
+  }
 }

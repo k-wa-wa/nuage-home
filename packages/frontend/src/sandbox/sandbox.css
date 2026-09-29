@@ -1,0 +1,144 @@
+/* サンドボックス固有のレイアウト。色・チップ・一覧は ui/theme.css */
+
+.sb-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sb-header h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.sb-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.sb-fixed {
+  color: var(--text);
+}
+
+.sb-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 16px;
+  padding: 16px;
+  height: calc(100vh - 58px);
+}
+
+@media (max-width: 900px) {
+  .sb-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .sb-log {
+    max-height: 50vh;
+  }
+}
+
+.sb-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+
+.sb-floor {
+  color: var(--muted);
+}
+
+.sb-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sb-line {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.sb-user {
+  align-self: flex-end;
+  background: var(--user);
+}
+
+.sb-assistant {
+  align-self: flex-start;
+  background: var(--border);
+}
+
+.sb-assistant.sb-interrupted::after {
+  content: " …（遮られた）";
+  color: var(--muted);
+}
+
+.sb-system {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sb-scenario,
+.sb-debug {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sb-debug {
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.sb-form {
+  display: flex;
+  gap: 8px;
+}
+
+.sb-form textarea {
+  flex: 1;
+  resize: none;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+}
+
+.sb-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sb-io {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.sb-io-body {
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+}

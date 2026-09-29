@@ -1,8 +1,10 @@
-import type { AssistantState } from "../conversation.ts"
 import VERTEX_SRC from "./orb.vert.glsl?raw"
 import FRAGMENT_SRC from "./orb.frag.glsl?raw"
 
 type Rgb = readonly [number, number, number]
+
+/** オーブの見た目の状態 */
+export type AssistantState = "stopped" | "listening" | "thinking" | "speaking"
 
 const ENERGY: Readonly<Record<AssistantState, number>> = {
   stopped: 0.08,

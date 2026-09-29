@@ -1,277 +1,114 @@
-import "./style.css"
-import { config } from "./config.ts"
-import { ConversationController, type ConversationView } from "./conversation.ts"
+import type { Notification, Task } from "@nuage-home/shared"
+import { config, LANG } from "./config.ts"
 import { OrbRenderer } from "./orb/orb-renderer.ts"
 import { WebSpeechRecognizer } from "./speech/web-speech-recognition.ts"
-import { WebSpeechSynthesizer } from "./speech/web-speech-synthesis.ts"
-import { AgentSocket } from "./ws-client.ts"
-import { GeminiLiveClient } from "./live-client.ts"
+import { FLOOR_LABEL, TaskBoard } from "./ui/board.ts"
+import "./ui/theme.css"
+import "./style.css"
+import { VoiceClient, type VoiceState } from "./voice/voice-client.ts"
+
+/**
+ * 音声モード。オーブを押して話しかける。
+ * 声では要約だけを伝え、頼んだ作業の状況と結果の全文は下の一覧に出す。
+ */
 
 const app = document.querySelector<HTMLDivElement>("#app")!
 app.innerHTML = `
-  <main>
-    <div id="orb-wrapper" style="cursor: pointer;">
+  <main class="voice">
+    <div id="orb-wrapper" class="orb-wrapper">
       <canvas id="orb"></canvas>
     </div>
-    <p id="interim">オーブをクリックして会話を開始</p>
-    <ul id="log"></ul>
+    <p id="status" class="status">オーブを押して会話を始める</p>
+    <p id="interim" class="interim"></p>
+    <ol id="log" class="log" aria-live="polite"></ol>
+    <div class="boards">
+      <section class="panel">
+        <h2>頼んだ作業</h2>
+        <ol id="tasks" class="list"></ol>
+      </section>
+      <section class="panel">
+        <h2>通知 <span id="floor" class="chip" data-state="idle">${FLOOR_LABEL.idle}</span></h2>
+        <ol id="notifications" class="list"></ol>
+      </section>
+    </div>
   </main>
 `
 
-const orbWrapper = document.querySelector<HTMLDivElement>("#orb-wrapper")!
-const orbCanvas = document.querySelector<HTMLCanvasElement>("#orb")!
-const interimEl = document.querySelector<HTMLParagraphElement>("#interim")!
-const logEl = document.querySelector<HTMLUListElement>("#log")!
-const orb = new OrbRenderer(orbCanvas)
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+const orb = new OrbRenderer($<HTMLCanvasElement>("orb"))
+const statusEl = $<HTMLParagraphElement>("status")
+const interimEl = $<HTMLParagraphElement>("interim")
+const logEl = $<HTMLOListElement>("log")
+const floorEl = $<HTMLSpanElement>("floor")
+const board = new TaskBoard($("tasks"), $("notifications"))
 
-function logLine(role: "user" | "assistant" | "error", text: string) {
-  const li = document.createElement("li")
-  li.textContent = `${role}: ${text}`
-  if (role === "error") {
-    li.style.color = "#ff6b6b"
+/** 書き起こしは断片で届くため、話者が変わるまで同じ行に足していく */
+let currentLine: { role: "user" | "assistant"; el: HTMLLIElement } | null = null
+
+function appendLog(role: "user" | "assistant" | "error", text: string) {
+  if (role !== "error" && currentLine?.role === role) {
+    currentLine.el.textContent += text
+  } else {
+    const li = document.createElement("li")
+    li.className = `log-${role}`
+    li.textContent = text
+    logEl.prepend(li)
+    currentLine = role === "error" ? null : { role, el: li }
   }
-  logEl.prepend(li)
 }
 
-if (config.useLiveMode) {
-  console.log("[main] Initializing Gemini Live mode with endpoint:", config.backendLiveWsUrl)
-  let currentAssistantLi: HTMLLIElement | null = null
-  let currentAssistantText = ""
-
-  let stt: WebSpeechRecognizer | null = null
-  try {
-    stt = new WebSpeechRecognizer(config.lang)
-    stt.onInterim = (text) => {
-      if (text) {
-        interimEl.textContent = `あなた: ${text}`
-      }
-    }
-    stt.onFinal = (text) => {
-      if (text) {
-        logLine("user", text)
-      }
-    }
-  } catch (err) {
-    console.warn("[main] WebSpeechRecognizer not available:", err)
-  }
-
-  interface AgentCardState {
-    el: HTMLDetailsElement
-    summaryEl: HTMLElement
-    stepsEl: HTMLDivElement
-    actionCount: number
-  }
-  let currentCard: AgentCardState | null = null
-
-  function ensureAgentCard(title = "ツール・調査活動"): AgentCardState {
-    if (currentCard) return currentCard
-
-    const card = document.createElement("details")
-    card.className = "agent-card"
-    card.open = true
-
-    const summary = document.createElement("summary")
-    summary.textContent = `🔧 ${title}`
-
-    const steps = document.createElement("div")
-    steps.className = "agent-card-steps"
-
-    card.appendChild(summary)
-    card.appendChild(steps)
-    logEl.prepend(card)
-
-    currentCard = {
-      el: card,
-      summaryEl: summary,
-      stepsEl: steps,
-      actionCount: 0,
-    }
-    return currentCard
-  }
-
-  function addCardStep(icon: string, text: string, detail?: string) {
-    const card = ensureAgentCard()
-    card.actionCount++
-    card.summaryEl.textContent = `🔧 エージェント調査活動 (${card.actionCount} アクション)`
-
-    const stepItem = document.createElement("div")
-    stepItem.className = "agent-step-item"
-    stepItem.innerHTML = `<span>${icon}</span> <span>${text}</span>`
-
-    if (detail) {
-      const resultEl = document.createElement("div")
-      resultEl.className = "agent-step-result"
-      resultEl.textContent = detail.length > 200 ? `${detail.slice(0, 200)}...` : detail
-      stepItem.appendChild(resultEl)
-    }
-
-    card.stepsEl.appendChild(stepItem)
-  }
-
-  const liveClient = new GeminiLiveClient(config.backendLiveWsUrl, {
-    onStateChange: (state) => {
-      console.log("[main] LiveState changed:", state)
-      switch (state) {
-        case "connecting":
-          interimEl.textContent = "Gemini Live に接続中..."
-          orb.setState("listening")
-          break
-        case "listening":
-          interimEl.textContent = "話しかけてください（聞き取り中）"
-          orb.setState("listening")
-          currentAssistantLi = null
-          currentAssistantText = ""
-          stt?.resume()
-          break
-        case "thinking":
-          interimEl.textContent = "Gemini が考え中..."
-          orb.setState("thinking")
-          stt?.suspend()
-          break
-        case "speaking":
-          interimEl.textContent = "Gemini が発話中..."
-          orb.setState("speaking")
-          stt?.suspend()
-          break
-        case "stopped":
-          interimEl.textContent = "停止中（クリックして再開）"
-          orb.setState("stopped")
-          currentAssistantLi = null
-          currentAssistantText = ""
-          currentCard = null
-          stt?.stop()
-          break
-      }
-    },
-    onUserSpeaking: (speaking) => {
-      if (speaking) {
-        currentAssistantLi = null
-        currentAssistantText = ""
-        currentCard = null
-      }
-    },
-    onUserTranscript: (text) => {
-      logLine("user", text)
-      currentCard = null
-    },
-    onToolStart: (tools, toolCalls) => {
-      if (tools.includes("run_agent")) {
-        interimEl.textContent = "自律エージェントが調査中...（少々お待ちください）"
-        ensureAgentCard("自律エージェント調査活動")
-      } else {
-        interimEl.textContent = `ツール実行中: ${tools.join(", ")}`
-        for (const call of toolCalls || []) {
-          addCardStep("⚙️", `${call.name}: ${JSON.stringify(call.args)}`)
-        }
-      }
-    },
-    onToolResult: (tool, output) => {
-      if (tool !== "run_agent") {
-        addCardStep("📥", `${tool} の結果取得 (${output.length}文字)`, output)
-      }
-    },
-    onAgentEvent: (event) => {
-      switch (event.type) {
-        case "step_start":
-          addCardStep("📍", `ステップ ${event.step} / ${event.maxSteps}`)
-          break
-
-        case "tool_start": {
-          let desc = ""
-          let icon = "🔍"
-          if (event.tool === "wikipedia") {
-            const kw = String(event.args.keyword ?? "")
-            desc = `Wikipediaで「${kw}」を検索中...`
-            interimEl.textContent = `🔍 ${desc}`
-          } else if (event.tool === "web_search") {
-            const q = String(event.args.query ?? "")
-            desc = `Webで「${q}」を検索中...`
-            icon = "🌐"
-            interimEl.textContent = `🌐 ${desc}`
-          } else if (event.tool === "weather") {
-            const loc = String(event.args.location ?? "")
-            desc = `天気情報を取得中（${loc}）...`
-            icon = "🌤️"
-            interimEl.textContent = `🌤️ ${desc}`
-          } else {
-            desc = `${event.tool} を実行中...`
-            icon = "⚙️"
-            interimEl.textContent = `⚙️ ${desc}`
-          }
-          addCardStep(icon, `${event.tool}: ${JSON.stringify(event.args)}`)
-          break
-        }
-
-        case "tool_result": {
-          addCardStep("📥", `${event.tool} の結果取得 (${event.output.length}文字)`, event.output)
-          break
-        }
-
-        case "summarizing":
-          interimEl.textContent = "📝 収集データから最終レポートを作成中..."
-          addCardStep("📝", "収集データをもとに最終レポートを作成中...")
-          break
-
-        case "complete":
-          if (currentCard) {
-            currentCard.summaryEl.textContent = `✅ 調査完了 (${currentCard.actionCount} アクション, レポート ${event.reportLength}文字)`
-          }
-          break
-      }
-    },
-    onTranscript: (chunk, isFinal) => {
-      if (chunk) {
-        if (!currentAssistantLi) {
-          currentAssistantLi = document.createElement("li")
-          currentAssistantText = ""
-          logEl.prepend(currentAssistantLi)
-        }
-        currentAssistantText += chunk
-        currentAssistantLi.textContent = `assistant: ${currentAssistantText}`
-      }
-      if (isFinal) {
-        currentAssistantLi = null
-        currentAssistantText = ""
-      }
-    },
-    onError: (err) => {
-      console.error("[main] LiveClient error:", err)
-      interimEl.textContent = `エラー: ${err.message}`
-      orb.setState("stopped")
-      logLine("error", err.message)
-      stt?.stop()
-    },
-  })
-
-  orbWrapper.addEventListener("click", () => {
-    console.log("[main] Orb clicked! Current running:", liveClient.running)
-    if (!liveClient.running) {
-      interimEl.textContent = "マイクと接続を初期化中..."
-      try {
-        stt?.start()
-      } catch {}
-    } else {
-      stt?.stop()
-    }
-    liveClient.toggle()
-  })
-} else {
-  console.log("[main] Initializing Web Speech mode with endpoint:", config.backendWsUrl)
-  const view: ConversationView = {
-    setState: (state) => orb.setState(state),
-    showInterim: (text) => {
-      interimEl.textContent = text
-    },
-    log: (role, text) => logLine(role, text),
-  }
-
-  const agent = new AgentSocket(config.backendWsUrl)
-  const controller = new ConversationController({
-    stt: new WebSpeechRecognizer(config.lang),
-    tts: new WebSpeechSynthesizer(config.lang),
-    agent,
-    view,
-  })
-
-  orbWrapper.addEventListener("click", () => controller.toggle())
+const STATUS_TEXT: Record<VoiceState, string> = {
+  stopped: "停止中（オーブを押して再開）",
+  connecting: "接続中…",
+  listening: "聞き取り中",
+  thinking: "考え中…",
+  speaking: "話している",
 }
+
+// 話している途中の文字の表示と、ログのユーザー発話に使う。
+// 会話の聞き取りは Gemini が行うが、音声を 1 ターンにまとめて送る方式では Gemini の書き起こしが返らないため
+let interim: WebSpeechRecognizer | null = null
+try {
+  interim = new WebSpeechRecognizer(LANG)
+  interim.onInterim = (text) => {
+    interimEl.textContent = text
+  }
+  interim.onFinal = (text) => appendLog("user", text)
+} catch (err) {
+  console.warn("[main] ブラウザの音声認識は使えない:", err)
+}
+
+const client = new VoiceClient(config.voiceWsUrl, {
+  onStateChange(state) {
+    statusEl.textContent = STATUS_TEXT[state]
+    orb.setState(state === "connecting" ? "listening" : state)
+    if (state === "stopped") interim?.stop()
+    else if (state === "speaking" || state === "thinking") interim?.suspend()
+    else interim?.resume()
+  },
+  onModelText: (text) => appendLog("assistant", text),
+  onModelTurnComplete() {
+    currentLine = null
+  },
+  onUserTranscript: (text) => appendLog("user", text),
+  onUserSpeaking(speaking) {
+    if (speaking) currentLine = null
+    else interimEl.textContent = ""
+  },
+  onTask: (task: Task) => board.upsertTask(task),
+  onNotification: (notification: Notification) => board.upsertNotification(notification),
+  onFloor(state) {
+    floorEl.textContent = FLOOR_LABEL[state]
+    floorEl.dataset.state = state
+  },
+  onError(err) {
+    statusEl.textContent = `エラー: ${err.message}`
+    appendLog("error", err.message)
+    if (!client.isRunning) orb.setState("stopped")
+  },
+})
+
+$<HTMLDivElement>("orb-wrapper").addEventListener("click", () => {
+  if (!client.isRunning) interim?.start()
+  client.toggle()
+})
