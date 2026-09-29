@@ -8,24 +8,24 @@
 // タスクと通知
 // ---------------------------------------------------------------------------
 
-export type TaskStatus = "accepted" | "running" | "succeeded" | "failed" | "cancelled"
+export type TaskStatus = "accepted" | "running" | "succeeded" | "failed" | "cancelled";
 
 export interface Task {
-  id: string
+  id: string;
   /** 仕事を引き受けた専門エージェントの名前 */
-  app: string
-  instruction: string
-  origin: "voice" | "ui"
-  status: TaskStatus
-  createdAt: number
-  finishedAt?: number
+  app: string;
+  instruction: string;
+  origin: "voice" | "ui";
+  status: TaskStatus;
+  createdAt: number;
+  finishedAt?: number;
   /** 音声向けの要約（ID・略語を含めない） */
-  summary?: string
+  summary?: string;
   /** 画面表示用の全文 */
-  detail?: string
+  detail?: string;
 }
 
-export type NotificationPriority = "urgent" | "normal" | "low"
+export type NotificationPriority = "urgent" | "normal" | "low";
 
 export type NotificationState =
   | "queued"
@@ -33,19 +33,19 @@ export type NotificationState =
   | "speaking"
   | "delivered"
   | "interrupted"
-  | "screen_only"
+  | "screen_only";
 
 export interface Notification {
-  id: string
-  taskId?: string
-  priority: NotificationPriority
-  summary: string
-  detail?: string
-  createdAt: number
-  state: NotificationState
+  id: string;
+  taskId?: string;
+  priority: NotificationPriority;
+  summary: string;
+  detail?: string;
+  createdAt: number;
+  state: NotificationState;
 }
 
-export type FloorStateName = "idle" | "user_speaking" | "awaiting_model" | "model_speaking"
+export type FloorStateName = "idle" | "user_speaking" | "awaiting_model" | "model_speaking";
 
 // ---------------------------------------------------------------------------
 // 会話の構成
@@ -56,9 +56,9 @@ export type FloorStateName = "idle" | "user_speaking" | "awaiting_model" | "mode
  * ツール（専門エージェント・即答ツール）はサンドボックスではモック固定とする。
  */
 export interface ConversationModes {
-  live: "mock" | "gemini"
-  llm: "mock" | "real"
-  tool: "mock" | "real"
+  live: "mock" | "gemini";
+  llm: "mock" | "real";
+  tool: "mock" | "real";
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ export type ConversationClientMessage =
   /** 裏で動くアプリを経由しない通知を手動で発生させる（動作確認用） */
   | { type: "debug_notify"; priority: NotificationPriority; summary: string }
   /** タスクと通知をすべて消す（実行中のタスクは中止する） */
-  | { type: "reset" }
+  | { type: "reset" };
 
 /** Live に実際に送った内容。画面で「裏側」を見せるために使う */
 export type LiveIoRecord =
@@ -89,7 +89,7 @@ export type LiveIoRecord =
   | { kind: "context"; text: string }
   | { kind: "prompt"; text: string }
   | { kind: "tool_call"; name: string; args: Record<string, unknown> }
-  | { kind: "tool_response"; name: string; response: unknown }
+  | { kind: "tool_response"; name: string; response: unknown };
 
 export type ConversationServerMessage =
   | { type: "ready"; modes: ConversationModes }
@@ -107,4 +107,4 @@ export type ConversationServerMessage =
   | { type: "notification_update"; notification: Notification }
   | { type: "live_io"; record: LiveIoRecord; at: number }
   | { type: "reset_done" }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string };

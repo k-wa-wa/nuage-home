@@ -40,12 +40,12 @@ export const TUNING = {
     /** モック Live が発話の断片を送る間隔 */
     liveChunkIntervalMs: 80,
   },
-} as const
+} as const;
 
 export const GEMINI_LIVE = {
-  /** LiteLLM の Gemini Live パススルーのパス */
+  /** Gemini Live パススルーのパス */
   wsPath: "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent",
   voice: "Aoede",
-} as const
+} as const;
 
-export const TIME_ZONE = "Asia/Tokyo"
+export const TIME_ZONE = "Asia/Tokyo";

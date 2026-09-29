@@ -1,6 +1,6 @@
-import { TUNING } from "../constants.ts"
-import { fetchViaBwproxy, htmlToText } from "./bwproxy.ts"
-import type { ToolDefinition } from "./types.ts"
+import { TUNING } from "../constants.ts";
+import { fetchViaBwproxy, htmlToText } from "./bwproxy.ts";
+import type { ToolDefinition } from "./types.ts";
 
 /**
  * ページ本文の取得ツール。bwproxy 経由でページを読み、本文テキストを返す。
@@ -9,7 +9,8 @@ import type { ToolDefinition } from "./types.ts"
 export function createFetchPageTool(bwproxyUrl: string): ToolDefinition {
   return {
     name: "fetch_page",
-    description: "Web ページを開いて本文を読む。web_search で見つけたページの詳細を確認するときに使う",
+    description:
+      "Web ページを開いて本文を読む。web_search で見つけたページの詳細を確認するときに使う",
     parameters: {
       type: "object",
       properties: {
@@ -18,11 +19,11 @@ export function createFetchPageTool(bwproxyUrl: string): ToolDefinition {
       required: ["url"],
     },
     execute: async (args) => {
-      const url = typeof args.url === "string" ? args.url.trim() : ""
-      if (!/^https?:\/\//.test(url)) return "http または https の URL を指定すること。"
-      const text = htmlToText(await fetchViaBwproxy(bwproxyUrl, url))
-      const max = TUNING.bwproxy.pageMaxChars
-      return text.length > max ? `${text.slice(0, max)}\n（以下省略。全 ${text.length} 字）` : text
+      const url = typeof args.url === "string" ? args.url.trim() : "";
+      if (!/^https?:\/\//.test(url)) return "http または https の URL を指定すること。";
+      const text = htmlToText(await fetchViaBwproxy(bwproxyUrl, url));
+      const max = TUNING.bwproxy.pageMaxChars;
+      return text.length > max ? `${text.slice(0, max)}\n（以下省略。全 ${text.length} 字）` : text;
     },
-  }
+  };
 }

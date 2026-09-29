@@ -9,7 +9,7 @@
 コード変更やテスト追加を行った後は、以下を実行して成功を確認すること。
 
 ```bash
-npm run check                          # 型チェック（backend・frontend）とテスト
+npm run check                          # typecheck, lint, test
 npm run build -w @nuage-home/frontend  # frontend を変更したとき
 ```
 

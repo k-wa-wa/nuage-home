@@ -1,4 +1,4 @@
-import { TUNING } from "../constants.ts"
+import { TUNING } from "../constants.ts";
 
 /**
  * bare-web-proxy（bwproxy）経由のページ取得。
@@ -14,36 +14,36 @@ export async function fetchViaBwproxy(bwproxyUrl: string, targetUrl: string): Pr
   const res = await fetch(`${bwproxyUrl}/proxy?url=${encodeURIComponent(targetUrl)}`, {
     headers: { "X-Program-Mode": "true" },
     signal: AbortSignal.timeout(TUNING.bwproxy.timeoutMs),
-  })
+  });
   if (!res.ok) {
     // 失敗時は { error, reason } の JSON が返る
-    const body = await res.text()
-    throw new BwproxyError(`bwproxy が失敗した（HTTP ${res.status}）: ${body.slice(0, 200)}`)
+    const body = await res.text();
+    throw new BwproxyError(`bwproxy が失敗した（HTTP ${res.status}）: ${body.slice(0, 200)}`);
   }
-  return res.text()
+  return res.text();
 }
 
 export function yahooSearchUrl(query: string): string {
-  return `https://search.yahoo.co.jp/search?p=${encodeURIComponent(query)}`
+  return `https://search.yahoo.co.jp/search?p=${encodeURIComponent(query)}`;
 }
 
 export interface SearchResult {
-  title: string
-  url: string
-  snippet: string
+  title: string;
+  url: string;
+  snippet: string;
 }
 
 /** Yahoo! JAPAN の検索結果ページ（bwproxy のプログラムモード）から結果を取り出す */
 export function parseYahooResults(html: string): SearchResult[] {
-  const results: SearchResult[] = []
-  const item = /<li><a href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a><div>([\s\S]*?)<\/div>/g
+  const results: SearchResult[] = [];
+  const item = /<li><a href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a><div>([\s\S]*?)<\/div>/g;
   for (const m of html.matchAll(item)) {
-    const url = decodeEntities(m[1])
+    const url = decodeEntities(m[1]);
     // Yahoo 自身のヘルプ等は結果ではない
-    if (/^https?:\/\/[^/]*yahoo(-net)?\.(co\.jp|jp|com)\//.test(url)) continue
-    results.push({ title: htmlToText(m[2]), url, snippet: htmlToText(m[3]) })
+    if (/^https?:\/\/[^/]*yahoo(-net)?\.(co\.jp|jp|com)\//.test(url)) continue;
+    results.push({ title: htmlToText(m[2]), url, snippet: htmlToText(m[3]) });
   }
-  return results
+  return results;
 }
 
 /** HTML を LLM に渡すためのプレーンテキストにする */
@@ -58,7 +58,7 @@ export function htmlToText(html: string): string {
   )
     .replace(/[ \t\f\v]+/g, " ")
     .replace(/\s*\n\s*/g, "\n")
-    .trim()
+    .trim();
 }
 
 function decodeEntities(text: string): string {
@@ -69,5 +69,5 @@ function decodeEntities(text: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/&amp;/g, "&")
+    .replace(/&amp;/g, "&");
 }

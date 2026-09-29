@@ -1,8 +1,8 @@
-import WebSocket from "ws"
-import type { Config } from "../config.ts"
-import { GEMINI_LIVE } from "../constants.ts"
-import type { GeminiLiveServerMessage } from "./gemini-types.ts"
-import type { LiveEvent, LivePort, LiveSetup, LiveToolResponse, UserTurn } from "./port.ts"
+import WebSocket from "ws";
+import type { Config } from "../config.ts";
+import { GEMINI_LIVE } from "../constants.ts";
+import type { GeminiLiveServerMessage } from "./gemini-types.ts";
+import type { LiveEvent, LivePort, LiveSetup, LiveToolResponse, UserTurn } from "./port.ts";
 
 /**
  * Gemini Live（LiteLLM のパススルー経由）を LivePort として扱う。
@@ -10,23 +10,23 @@ import type { LiveEvent, LivePort, LiveSetup, LiveToolResponse, UserTurn } from 
  * Live の発話は音声と書き起こしの両方で受け取る。
  */
 export class GeminiLivePort implements LivePort {
-  private ws: WebSocket | null = null
-  private listener: (e: LiveEvent) => void = () => {}
-  private readonly cfg: Config["geminiLive"]
+  private ws: WebSocket | null = null;
+  private listener: (e: LiveEvent) => void = () => {};
+  private readonly cfg: Config["geminiLive"];
 
   constructor(cfg: Config["geminiLive"]) {
-    this.cfg = cfg
+    this.cfg = cfg;
   }
 
   onEvent(listener: (e: LiveEvent) => void): void {
-    this.listener = listener
+    this.listener = listener;
   }
 
   start(setup: LiveSetup): Promise<void> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(this.cfg.wsUrl)
-      this.ws = ws
-      let ready = false
+      const ws = new WebSocket(this.cfg.wsUrl);
+      this.ws = ws;
+      let ready = false;
 
       ws.on("open", () => {
         ws.send(
@@ -35,7 +35,9 @@ export class GeminiLivePort implements LivePort {
               model: this.cfg.model,
               generationConfig: {
                 responseModalities: ["AUDIO"],
-                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_LIVE.voice } } },
+                speechConfig: {
+                  voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_LIVE.voice } },
+                },
               },
               systemInstruction: { parts: [{ text: setup.systemInstruction }] },
               inputAudioTranscription: {},
@@ -45,81 +47,91 @@ export class GeminiLivePort implements LivePort {
               tools: [{ functionDeclarations: setup.tools }],
             },
           }),
-        )
-      })
+        );
+      });
 
       ws.on("message", (raw: WebSocket.Data) => {
-        let msg: GeminiLiveServerMessage
+        let msg: GeminiLiveServerMessage;
         try {
-          msg = JSON.parse(raw.toString())
+          msg = JSON.parse(raw.toString());
         } catch {
-          return
+          return;
         }
         if (msg.setupComplete) {
-          ready = true
-          resolve()
-          return
+          ready = true;
+          resolve();
+          return;
         }
-        const sc = msg.serverContent
+        const sc = msg.serverContent;
         if (sc) {
           for (const part of sc.modelTurn?.parts ?? []) {
-            if (part.inlineData?.data) this.emit({ type: "audio", data: part.inlineData.data })
+            if (part.inlineData?.data) this.emit({ type: "audio", data: part.inlineData.data });
           }
-          if (sc.inputTranscription?.text) this.emit({ type: "user_text", text: sc.inputTranscription.text })
-          if (sc.outputTranscription?.text) this.emit({ type: "text", text: sc.outputTranscription.text })
-          if (sc.interrupted) this.emit({ type: "interrupted" })
-          if (sc.turnComplete) this.emit({ type: "turn_complete" })
+          if (sc.inputTranscription?.text)
+            this.emit({ type: "user_text", text: sc.inputTranscription.text });
+          if (sc.outputTranscription?.text)
+            this.emit({ type: "text", text: sc.outputTranscription.text });
+          if (sc.interrupted) this.emit({ type: "interrupted" });
+          if (sc.turnComplete) this.emit({ type: "turn_complete" });
         }
         if (msg.toolCall) {
           this.emit({
             type: "tool_call",
-            calls: msg.toolCall.functionCalls.map((c) => ({ id: c.id, name: c.name, args: c.args ?? {} })),
-          })
+            calls: msg.toolCall.functionCalls.map((c) => ({
+              id: c.id,
+              name: c.name,
+              args: c.args ?? {},
+            })),
+          });
         }
-      })
+      });
 
       ws.on("close", (code, reason) => {
-        const message = `Gemini Live が切断された (${code} ${reason.toString()})`
-        if (!ready) reject(new Error(message))
-        else this.emit({ type: "error", message })
-      })
+        const message = `Gemini Live が切断された (${code} ${reason.toString()})`;
+        if (!ready) reject(new Error(message));
+        else this.emit({ type: "error", message });
+      });
       ws.on("error", (err) => {
-        if (!ready) reject(err)
-        else this.emit({ type: "error", message: String(err) })
-      })
-    })
+        if (!ready) reject(err);
+        else this.emit({ type: "error", message: String(err) });
+      });
+    });
   }
 
   sendUserTurn(turn: UserTurn): void {
     const part =
       "audio" in turn
         ? { inlineData: { mimeType: "audio/pcm;rate=16000", data: turn.audio.toString("base64") } }
-        : { text: turn.text }
-    this.send({ clientContent: { turns: [{ role: "user", parts: [part] }], turnComplete: true } })
+        : { text: turn.text };
+    this.send({ clientContent: { turns: [{ role: "user", parts: [part] }], turnComplete: true } });
   }
 
   sendContext(text: string): void {
-    this.send({ clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: false } })
+    this.send({
+      clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: false },
+    });
   }
 
   sendPrompt(text: string): void {
-    this.send({ clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: true } })
+    this.send({
+      clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: true },
+    });
   }
 
   sendToolResponses(responses: LiveToolResponse[]): void {
-    this.send({ toolResponse: { functionResponses: responses } })
+    this.send({ toolResponse: { functionResponses: responses } });
   }
 
   close(): void {
-    this.ws?.close()
-    this.ws = null
+    this.ws?.close();
+    this.ws = null;
   }
 
   private send(payload: unknown): void {
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(payload))
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(payload));
   }
 
   private emit(e: LiveEvent): void {
-    this.listener(e)
+    this.listener(e);
   }
 }

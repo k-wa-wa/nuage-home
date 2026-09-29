@@ -4,24 +4,24 @@ import type {
   FloorStateName,
   Notification,
   Task,
-} from "@nuage-home/shared"
-import { AudioPlayer } from "./audio-player.ts"
-import { AudioRecorder } from "./audio-recorder.ts"
+} from "@nuage-home/shared";
+import { AudioPlayer } from "./audio-player.ts";
+import { AudioRecorder } from "./audio-recorder.ts";
 
-export type VoiceState = "stopped" | "connecting" | "listening" | "thinking" | "speaking"
+export type VoiceState = "stopped" | "connecting" | "listening" | "thinking" | "speaking";
 
 export interface VoiceClientCallbacks {
-  onStateChange(state: VoiceState): void
+  onStateChange(state: VoiceState): void;
   /** Live の発話の書き起こし（断片） */
-  onModelText(text: string): void
-  onModelTurnComplete(): void
+  onModelText(text: string): void;
+  onModelTurnComplete(): void;
   /** Gemini が聞き取ったユーザーの発話（断片） */
-  onUserTranscript(text: string): void
-  onUserSpeaking(speaking: boolean): void
-  onTask(task: Task): void
-  onNotification(notification: Notification): void
-  onFloor(state: FloorStateName): void
-  onError(err: Error): void
+  onUserTranscript(text: string): void;
+  onUserSpeaking(speaking: boolean): void;
+  onTask(task: Task): void;
+  onNotification(notification: Notification): void;
+  onFloor(state: FloorStateName): void;
+  onError(err: Error): void;
 }
 
 /**
@@ -29,159 +29,164 @@ export interface VoiceClientCallbacks {
  * いつ何を話すかの判断は backend が行い、ここは音声の入出力と状態の中継に徹する。
  */
 export class VoiceClient {
-  private ws: WebSocket | null = null
-  private readonly recorder: AudioRecorder
-  private readonly player: AudioPlayer
-  private running = false
-  private thinking = false
+  private ws: WebSocket | null = null;
+  private readonly recorder: AudioRecorder;
+  private readonly player: AudioPlayer;
+  private running = false;
+  private thinking = false;
   /** Live のターンの途中（音声を受け取り始めて、turn_complete が来ていない） */
-  private modelTurnActive = false
+  private modelTurnActive = false;
   /** 割り込んだターンの残りの音声を捨てている最中か */
-  private discarding = false
-  private readonly url: string
-  private readonly cb: VoiceClientCallbacks
+  private discarding = false;
+  private readonly url: string;
+  private readonly cb: VoiceClientCallbacks;
 
   constructor(url: string, callbacks: VoiceClientCallbacks) {
-    this.url = url
-    this.cb = callbacks
+    this.url = url;
+    this.cb = callbacks;
 
     this.recorder = new AudioRecorder({
       onAudioChunk: (data) => this.send({ type: "user_audio", data }),
       onSpeechStart: () => {
-        if (!this.running) return
+        if (!this.running) return;
         // 発話開始を先に伝えてから再生を止める。逆順だと、遮られた通知が「伝達済み」と判定される
-        this.send({ type: "speech_start" })
-        this.player.interrupt()
+        this.send({ type: "speech_start" });
+        this.player.interrupt();
         // 割り込んだターンの残りの音声が後から届いても再生しない
-        this.discarding = this.modelTurnActive
-        this.thinking = false
-        this.cb.onUserSpeaking(true)
-        this.cb.onStateChange("listening")
+        this.discarding = this.modelTurnActive;
+        this.thinking = false;
+        this.cb.onUserSpeaking(true);
+        this.cb.onStateChange("listening");
       },
       onSpeechCancel: () => {
-        if (!this.running) return
-        this.send({ type: "speech_cancel" })
-        this.cb.onUserSpeaking(false)
-        this.cb.onStateChange("listening")
+        if (!this.running) return;
+        this.send({ type: "speech_cancel" });
+        this.cb.onUserSpeaking(false);
+        this.cb.onStateChange("listening");
       },
       onSpeechEnd: () => {
-        if (!this.running) return
-        this.send({ type: "user_audio_end" })
-        this.cb.onUserSpeaking(false)
-        this.thinking = true
-        this.cb.onStateChange("thinking")
+        if (!this.running) return;
+        this.send({ type: "user_audio_end" });
+        this.cb.onUserSpeaking(false);
+        this.thinking = true;
+        this.cb.onStateChange("thinking");
       },
-    })
+    });
 
     this.player = new AudioPlayer((playing) => {
-      if (!this.running) return
+      if (!this.running) return;
       // backend の発言権（Floor）管理は、生成完了ではなく再生状態で Live の発話終了を判定する
-      this.send({ type: "playback_state", playing })
-      if (playing) this.cb.onStateChange("speaking")
-      else if (!this.thinking) this.cb.onStateChange("listening")
-    })
+      this.send({ type: "playback_state", playing });
+      if (playing) this.cb.onStateChange("speaking");
+      else if (!this.thinking) this.cb.onStateChange("listening");
+    });
   }
 
   get isRunning(): boolean {
-    return this.running
+    return this.running;
   }
 
   async start(): Promise<void> {
-    if (this.running) return
-    this.running = true
-    this.cb.onStateChange("connecting")
+    if (this.running) return;
+    this.running = true;
+    this.cb.onStateChange("connecting");
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      this.stop(new Error("マイク（getUserMedia）が使えない。localhost か HTTPS で開く必要がある。"))
-      return
+      this.stop(
+        new Error("マイク（getUserMedia）が使えない。localhost か HTTPS で開く必要がある。"),
+      );
+      return;
     }
 
     // ユーザー操作の直下でマイクと再生コンテキストを初期化する
     try {
-      await this.player.warmup()
-      await this.recorder.start()
+      await this.player.warmup();
+      await this.recorder.start();
     } catch (err) {
-      this.stop(new Error(`マイクの起動に失敗した: ${String(err)}`))
-      return
+      this.stop(new Error(`マイクの起動に失敗した: ${String(err)}`));
+      return;
     }
 
-    const ws = new WebSocket(this.url)
-    this.ws = ws
-    ws.onmessage = (event) => this.handle(JSON.parse(String(event.data)) as ConversationServerMessage)
-    ws.onerror = () => this.stop(new Error("会話サーバーへの接続に失敗した"))
+    const ws = new WebSocket(this.url);
+    this.ws = ws;
+    ws.onmessage = (event) =>
+      this.handle(JSON.parse(String(event.data)) as ConversationServerMessage);
+    ws.onerror = () => this.stop(new Error("会話サーバーへの接続に失敗した"));
     ws.onclose = (event) => {
-      if (this.ws !== ws) return
-      if (event.code !== 1000 && event.code !== 1005) this.stop(new Error(`切断された (${event.code} ${event.reason})`))
-      else this.stop()
-    }
+      if (this.ws !== ws) return;
+      if (event.code !== 1000 && event.code !== 1005)
+        this.stop(new Error(`切断された (${event.code} ${event.reason})`));
+      else this.stop();
+    };
   }
 
   stop(error?: Error): void {
-    this.running = false
-    this.thinking = false
-    this.modelTurnActive = false
-    this.discarding = false
-    this.recorder.stop()
-    this.player.interrupt()
-    const ws = this.ws
-    this.ws = null
-    ws?.close()
-    if (error) this.cb.onError(error)
-    else this.cb.onStateChange("stopped")
+    this.running = false;
+    this.thinking = false;
+    this.modelTurnActive = false;
+    this.discarding = false;
+    this.recorder.stop();
+    this.player.interrupt();
+    const ws = this.ws;
+    this.ws = null;
+    ws?.close();
+    if (error) this.cb.onError(error);
+    else this.cb.onStateChange("stopped");
   }
 
   toggle(): void {
-    if (this.running) this.stop()
-    else this.start().catch((err) => this.stop(err instanceof Error ? err : new Error(String(err))))
+    if (this.running) this.stop();
+    else
+      this.start().catch((err) => this.stop(err instanceof Error ? err : new Error(String(err))));
   }
 
   private handle(msg: ConversationServerMessage): void {
     switch (msg.type) {
       case "ready":
-        this.cb.onStateChange("listening")
-        return
+        this.cb.onStateChange("listening");
+        return;
       case "model_audio":
-        this.modelTurnActive = true
-        if (this.discarding) return
-        this.thinking = false
-        this.player.queueAudioChunk(msg.data)
-        return
+        this.modelTurnActive = true;
+        if (this.discarding) return;
+        this.thinking = false;
+        this.player.queueAudioChunk(msg.data);
+        return;
       case "model_text":
-        if (!this.discarding) this.cb.onModelText(msg.text)
-        return
+        if (!this.discarding) this.cb.onModelText(msg.text);
+        return;
       case "model_turn_complete":
-        this.modelTurnActive = false
-        this.discarding = false
-        this.thinking = false
-        this.cb.onModelTurnComplete()
-        if (!this.player.playing) this.cb.onStateChange("listening")
-        return
+        this.modelTurnActive = false;
+        this.discarding = false;
+        this.thinking = false;
+        this.cb.onModelTurnComplete();
+        if (!this.player.playing) this.cb.onStateChange("listening");
+        return;
       case "user_transcript":
-        this.cb.onUserTranscript(msg.text)
-        return
+        this.cb.onUserTranscript(msg.text);
+        return;
       case "interrupted":
-        this.player.interrupt()
-        return
+        this.player.interrupt();
+        return;
       case "floor":
-        this.cb.onFloor(msg.state)
-        return
+        this.cb.onFloor(msg.state);
+        return;
       case "task_update":
-        this.cb.onTask(msg.task)
-        return
+        this.cb.onTask(msg.task);
+        return;
       case "notification_update":
-        this.cb.onNotification(msg.notification)
-        return
+        this.cb.onNotification(msg.notification);
+        return;
       case "error":
-        this.cb.onError(new Error(msg.message))
-        return
+        this.cb.onError(new Error(msg.message));
+        return;
       // 音声モードでは使わない
       case "live_io":
       case "reset_done":
-        return
+        return;
     }
   }
 
   private send(msg: ConversationClientMessage): void {
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg))
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
   }
 }

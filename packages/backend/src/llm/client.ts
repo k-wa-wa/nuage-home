@@ -1,32 +1,32 @@
-import type { LlmConfig } from "../config.ts"
-import type { OpenAITool } from "../tools/types.ts"
+import type { LlmConfig } from "../config.ts";
+import type { OpenAITool } from "../tools/types.ts";
 
 export interface ToolCall {
-  id: string
-  type: "function"
+  id: string;
+  type: "function";
   function: {
-    name: string
-    arguments: string
-  }
+    name: string;
+    arguments: string;
+  };
 }
 
 export interface LlmMessage {
-  role: "system" | "user" | "assistant" | "tool"
-  content: string | null
-  tool_calls?: ToolCall[]
-  tool_call_id?: string
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
 }
 
 export interface LlmResponse {
-  content: string | null
-  tool_calls?: ToolCall[]
+  content: string | null;
+  tool_calls?: ToolCall[];
 }
 
 /** エージェントが依存する LLM 呼び出しの形。実 LLM とモックを同じ形で差し替える */
-export type ChatFn = (messages: LlmMessage[], tools: OpenAITool[]) => Promise<LlmResponse>
+export type ChatFn = (messages: LlmMessage[], tools: OpenAITool[]) => Promise<LlmResponse>;
 
 export function createLiteLlmChat(options: LlmConfig): ChatFn {
-  return (messages, tools) => chat(options, messages, tools)
+  return (messages, tools) => chat(options, messages, tools);
 }
 
 /**
@@ -40,10 +40,10 @@ export async function chat(
   const body: Record<string, unknown> = {
     model: options.model,
     messages,
-  }
+  };
 
   if (tools && tools.length > 0) {
-    body.tools = tools
+    body.tools = tools;
   }
 
   const res = await fetch(`${options.baseUrl}/chat/completions`, {
@@ -53,29 +53,29 @@ export async function chat(
       Authorization: `Bearer ${options.apiKey}`,
     },
     body: JSON.stringify(body),
-  })
+  });
 
   if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`LiteLLM request failed: ${res.status} ${errorText}`)
+    const errorText = await res.text();
+    throw new Error(`LiteLLM request failed: ${res.status} ${errorText}`);
   }
 
   const data = (await res.json()) as {
     choices?: {
       message?: {
-        content?: string | null
-        tool_calls?: ToolCall[]
-      }
-    }[]
-  }
+        content?: string | null;
+        tool_calls?: ToolCall[];
+      };
+    }[];
+  };
 
-  const message = data.choices?.[0]?.message
+  const message = data.choices?.[0]?.message;
   if (!message) {
-    throw new Error("LiteLLM response missing choices[0].message")
+    throw new Error("LiteLLM response missing choices[0].message");
   }
 
   return {
     content: message.content ?? null,
     tool_calls: message.tool_calls,
-  }
+  };
 }
