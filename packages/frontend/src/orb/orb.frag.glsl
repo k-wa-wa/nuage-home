@@ -3,6 +3,8 @@ uniform vec2 uResolution;
 uniform float uTime;
 uniform float uEnergy;
 uniform vec3 uColor;
+uniform vec3 uBgColor;
+uniform float uRadius;
 
 // Procedural 2D Simplex Noise for ultra-smooth organic fluid motion
 vec2 hash2(vec2 p) {
@@ -28,13 +30,14 @@ float fbm(vec2 p) {
 }
 
 void main() {
-  vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-  float r = length(uv);
-  float angle = atan(uv.y, uv.x);
+  vec2 pixelCoord = gl_FragCoord.xy - 0.5 * uResolution.xy;
+  float pixelDist = length(pixelCoord);
+  float r = pixelDist / uRadius;
+  float angle = atan(pixelCoord.y, pixelCoord.x);
 
   // Time & dynamics: subtle living breathing base + responsive energy
   float t = uTime * (0.85 + 0.65 * uEnergy);
-  float breathe = sin(uTime * 1.5) * 0.006 * (0.6 + 0.4 * uEnergy);
+  float breathe = sin(uTime * 1.5) * 0.02 * (0.6 + 0.4 * uEnergy);
 
   // Seamless 360-degree polar noise sampling (guarantees zero seam/boundary artifact)
   vec2 circleCoord = vec2(cos(angle), sin(angle));
@@ -44,46 +47,50 @@ void main() {
   float n2 = fbm(circleCoord * 3.4 - vec2(t * 0.6, -t * 0.7) + 3.1);
   float n3 = snoise(circleCoord * 5.2 + vec2(-t * 0.9, t * 0.8) + 7.4);
 
-  float waveDisp = (n1 * 0.024 + n2 * 0.013 + n3 * 0.007) * (0.65 + 0.65 * uEnergy);
+  float waveDisp = (n1 * 0.07 + n2 * 0.04 + n3 * 0.02) * (0.65 + 0.65 * uEnergy);
 
-  // Base ring radius with gentle organic breathing
-  float baseR = 0.300 + breathe;
+  // Base ring radius is normalized to 1.0
+  float baseR = 1.0 + breathe;
 
-  // Multiple interwoven fine luminous filaments (the organic look user praised)
+  // Multiple interwoven fine luminous filaments (the organic look)
   float ringDist1 = abs(r - (baseR + waveDisp));
-  float ringDist2 = abs(r - (baseR + waveDisp * 0.78 + n2 * 0.011));
-  float ringDist3 = abs(r - (baseR - waveDisp * 0.65 + n3 * 0.009));
-  float ringDist4 = abs(r - (baseR + n1 * 0.016 - 0.007));
-  float ringDist5 = abs(r - (baseR - n2 * 0.014 + 0.007));
+  float ringDist2 = abs(r - (baseR + waveDisp * 0.78 + n2 * 0.035));
+  float ringDist3 = abs(r - (baseR - waveDisp * 0.65 + n3 * 0.03));
+  float ringDist4 = abs(r - (baseR + n1 * 0.05 - 0.02));
+  float ringDist5 = abs(r - (baseR - n2 * 0.045 + 0.02));
 
-  float f1 = smoothstep(0.012 + 0.005 * uEnergy, 0.0, ringDist1);
-  float f2 = smoothstep(0.011 + 0.004 * uEnergy, 0.0, ringDist2);
-  float f3 = smoothstep(0.011 + 0.004 * uEnergy, 0.0, ringDist3);
-  float f4 = smoothstep(0.012 + 0.005 * uEnergy, 0.0, ringDist4);
-  float f5 = smoothstep(0.010 + 0.004 * uEnergy, 0.0, ringDist5);
+  float f1 = smoothstep(0.040 + 0.015 * uEnergy, 0.0, ringDist1);
+  float f2 = smoothstep(0.035 + 0.012 * uEnergy, 0.0, ringDist2);
+  float f3 = smoothstep(0.035 + 0.012 * uEnergy, 0.0, ringDist3);
+  float f4 = smoothstep(0.040 + 0.015 * uEnergy, 0.0, ringDist4);
+  float f5 = smoothstep(0.032 + 0.012 * uEnergy, 0.0, ringDist5);
 
   float filaments = f1 * 1.0 + f2 * 0.80 + f3 * 0.75 + f4 * 0.70 + f5 * 0.60;
 
   // Diffuse atmospheric halo & aurora bloom around the ring
-  float halo = exp(-abs(r - baseR - waveDisp * 0.5) * 20.0) * (0.35 + 0.25 * uEnergy);
-  float outerGlow = exp(-abs(r - baseR) * 8.5) * (0.12 + 0.10 * uEnergy);
+  float halo = exp(-abs(r - baseR - waveDisp * 0.5) * 6.5) * (0.35 + 0.25 * uEnergy);
+  float outerGlow = exp(-max(0.0, r - baseR) * 2.8) * (0.12 + 0.10 * uEnergy);
 
   // Subtle ethereal inner core glow
-  float innerCore = exp(-r * 7.0) * (0.08 + 0.16 * uEnergy);
+  float innerCore = exp(-r * 2.2) * (0.08 + 0.16 * uEnergy);
+
+  // 外側フェード: r が 2.0 に達するまでに完全に 0 に滑らかに収束させ、段差を完全に防止する
+  float fadeOut = smoothstep(2.0, 1.1, r);
 
   // Total luminosity composite
-  float totalLight = filaments * 0.85 + halo + outerGlow + innerCore;
+  float totalLight = (filaments * 0.85 + halo + outerGlow + innerCore) * fadeOut;
 
   // Dynamic iridescent rim highlight that adapts naturally to the base state color
   vec3 baseCol = uColor;
-  vec3 shiftColA = mix(uColor, vec3(1.0, 0.6, 0.9), 0.30); // Soft companion tint
-  vec3 shiftColB = mix(uColor, vec3(0.4, 1.0, 0.9), 0.35); // Luminous companion highlight
+  vec3 shiftColA = mix(uColor, vec3(1.0, 0.6, 0.9), 0.30);
+  vec3 shiftColB = mix(uColor, vec3(0.4, 1.0, 0.9), 0.35);
 
   float huePhase = sin(angle * 2.0 + t * 0.8 + n1 * 2.0) * 0.5 + 0.5;
   vec3 colorGrad = mix(baseCol, mix(shiftColA, shiftColB, huePhase), 0.35);
 
   // Hot luminous core where filaments overlap (pure white center highlight)
-  vec3 finalColor = colorGrad * totalLight + vec3(1.0) * pow(clamp(filaments * 0.65, 0.0, 1.0), 2.2) * 0.60;
+  vec3 orbLight = colorGrad * totalLight + vec3(1.0) * pow(clamp(filaments * 0.65, 0.0, 1.0), 2.2) * 0.60;
+  vec3 finalColor = uBgColor + orbLight;
 
   gl_FragColor = vec4(finalColor, 1.0);
 }

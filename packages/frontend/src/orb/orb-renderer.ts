@@ -28,6 +28,30 @@ const COLOR: Readonly<Record<AssistantState, Rgb>> = {
 // 1 フレームごとに目標値へ近づける割合（状態遷移の速さ）
 const EASING = 0.025;
 
+function getAppBgColor(): [number, number, number] {
+  try {
+    const raw = getComputedStyle(document.body).getPropertyValue("--bg").trim();
+    if (raw.startsWith("#")) {
+      const hex = raw.slice(1);
+      if (hex.length === 6) {
+        const val = Number.parseInt(hex, 16);
+        return [((val >> 16) & 255) / 255, ((val >> 8) & 255) / 255, (val & 255) / 255];
+      }
+    }
+    const match = raw.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+      return [
+        Number.parseInt(match[1], 10) / 255,
+        Number.parseInt(match[2], 10) / 255,
+        Number.parseInt(match[3], 10) / 255,
+      ];
+    }
+  } catch {
+    // フォールバック
+  }
+  return [11 / 255, 13 / 255, 16 / 255];
+}
+
 function compileShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
   const shader = gl.createShader(type)!;
   gl.shaderSource(shader, src);
@@ -46,7 +70,11 @@ export class OrbRenderer {
   private uTime: WebGLUniformLocation;
   private uEnergy: WebGLUniformLocation;
   private uColor: WebGLUniformLocation;
+  private uBgColor: WebGLUniformLocation;
   private uResolution: WebGLUniformLocation;
+  private uRadius: WebGLUniformLocation;
+  private radius = 100;
+  private bgColor: [number, number, number] = [11 / 255, 13 / 255, 16 / 255];
   private currentEnergy = ENERGY.stopped;
   private targetEnergy = ENERGY.stopped;
   // 補間で毎フレーム書き換えるので、定数 COLOR を共有せずコピーを持つ
@@ -80,7 +108,10 @@ export class OrbRenderer {
     this.uTime = gl.getUniformLocation(program, "uTime")!;
     this.uEnergy = gl.getUniformLocation(program, "uEnergy")!;
     this.uColor = gl.getUniformLocation(program, "uColor")!;
+    this.uBgColor = gl.getUniformLocation(program, "uBgColor")!;
     this.uResolution = gl.getUniformLocation(program, "uResolution")!;
+    this.uRadius = gl.getUniformLocation(program, "uRadius")!;
+    this.bgColor = getAppBgColor();
 
     window.addEventListener("resize", () => this.resize());
     this.resize();
@@ -93,11 +124,14 @@ export class OrbRenderer {
   }
 
   private resize() {
+    this.bgColor = getAppBgColor();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const { width, height } = this.canvas.getBoundingClientRect();
+    const width = window.innerWidth;
+    const height = window.innerHeight;
     this.canvas.width = Math.round(width * dpr);
     this.canvas.height = Math.round(height * dpr);
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    this.radius = 100 * dpr;
   }
 
   private loop = () => {
@@ -110,7 +144,9 @@ export class OrbRenderer {
     gl.uniform1f(this.uTime, (performance.now() - this.startTime) / 1000);
     gl.uniform1f(this.uEnergy, this.currentEnergy);
     gl.uniform3f(this.uColor, this.currentColor[0], this.currentColor[1], this.currentColor[2]);
+    gl.uniform3f(this.uBgColor, this.bgColor[0], this.bgColor[1], this.bgColor[2]);
     gl.uniform2f(this.uResolution, this.canvas.width, this.canvas.height);
+    gl.uniform1f(this.uRadius, this.radius);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     requestAnimationFrame(this.loop);

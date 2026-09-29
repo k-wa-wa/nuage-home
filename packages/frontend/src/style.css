@@ -1,53 +1,105 @@
 /* 音声モードのレイアウト。色・チップ・一覧は ui/theme.css */
 
+#orb {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  background: transparent;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .voice {
-  width: min(720px, 100%);
-  margin: 0 auto;
-  padding: 24px 16px;
+  position: relative;
+  width: 100vw;
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  padding: 24px 16px;
+  pointer-events: none;
 }
 
-.orb-wrapper {
-  cursor: pointer;
+.center-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+  z-index: 1;
+  pointer-events: none;
 }
 
-#orb {
-  display: block;
+.orb-hitbox {
   width: 240px;
   height: 240px;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
   background: transparent;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.orb-hitbox:hover {
+  transform: scale(1.03);
+}
+
+.orb-hitbox:active {
+  transform: scale(0.97);
 }
 
 .status {
-  margin: 0;
+  margin: 16px 0 0;
   color: var(--muted);
+  font-size: 15px;
+  pointer-events: auto;
 }
 
 .interim {
   min-height: 1.4em;
-  margin: 0;
-  opacity: 0.6;
+  margin: 6px 0 0;
+  opacity: 0.7;
   font-style: italic;
+  font-size: 14px;
+  pointer-events: auto;
 }
 
 .log {
   width: 100%;
   list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  max-height: 30vh;
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  max-height: 22vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  background: rgba(21, 25, 32, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.log:empty {
+  display: none;
 }
 
 .log > li {
   line-height: 1.5;
   white-space: pre-wrap;
+  text-align: left;
 }
 
 .log-user::before {
@@ -64,10 +116,77 @@
   color: var(--danger);
 }
 
-.boards {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+/* 浮動モーダル（Tasks / Notification） */
+.floating-modal {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: rgba(21, 25, 32, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+  pointer-events: auto;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.floating-modal.is-active {
+  border-color: rgba(110, 168, 254, 0.4);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(110, 168, 254, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.modal-header:active,
+.modal-header.dragging {
+  cursor: grabbing;
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.drag-handle {
+  color: var(--muted);
+  font-size: 13px;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.modal-body {
+  padding: 12px 14px;
+  max-height: min(420px, 45vh);
+  overflow-y: auto;
 }
