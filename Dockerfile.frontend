@@ -1,0 +1,37 @@
+# -----------------
+# 1. ビルドステージ
+# -----------------
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# npm workspaces の依存解決に必要な定義をコピーする
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/frontend/package.json packages/frontend/
+
+# 依存パッケージをインストールする
+RUN npm ci
+
+# ソースコードをコピーする
+COPY packages/shared/ packages/shared/
+COPY packages/frontend/ packages/frontend/
+
+# 接続先バックエンドの WebSocket URL（k8s 内部サービス名）
+ARG VITE_BACKEND_URL=ws://backend:8787
+ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
+
+# フロントエンドのビルドを実行する
+RUN npm run build -w @nuage-home/frontend
+
+# -----------------
+# 2. 実行ステージ
+# -----------------
+FROM nginx:alpine AS runner
+
+COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

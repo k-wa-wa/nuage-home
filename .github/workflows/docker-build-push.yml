@@ -1,0 +1,29 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+jobs:
+  backend:
+    name: Backend
+    uses: k-wa-wa/nuage-workspace/.github/workflows/docker-build-push.yml@master
+    with:
+      context: .
+      file: ./Dockerfile.backend
+      image: ghcr.io/${{ github.repository }}-backend
+
+  frontend:
+    name: Frontend
+    uses: k-wa-wa/nuage-workspace/.github/workflows/docker-build-push.yml@master
+    with:
+      context: .
+      file: ./Dockerfile.frontend
+      image: ghcr.io/${{ github.repository }}-frontend

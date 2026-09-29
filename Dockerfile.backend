@@ -1,0 +1,22 @@
+FROM node:22-alpine
+
+WORKDIR /app
+
+# npm workspaces の依存解決に必要な定義をコピーする
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/backend/package.json packages/backend/
+
+# 実行時にも tsx を使用するため依存パッケージをインストールする
+RUN npm ci
+
+# ソースコードをコピーする
+COPY packages/shared/ packages/shared/
+COPY packages/backend/ packages/backend/
+
+ENV NODE_ENV=production
+ENV PORT=8787
+
+EXPOSE 8787
+
+CMD ["npx", "tsx", "packages/backend/src/main.ts"]

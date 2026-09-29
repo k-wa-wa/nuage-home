@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nuage-home-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare-prod"
+spec:
+  ingressClassName: cilium
+  tls:
+    - hosts:
+        - home.wpcapp.net
+      secretName: nuage-home-tls-secret
+  rules:
+    - host: home.wpcapp.net
+      http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8787
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

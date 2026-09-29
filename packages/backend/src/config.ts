@@ -37,6 +37,7 @@ export function loadConfig(): Config {
     apiKey: required("LITELLM_API_KEY"),
     model: required("LITELLM_MODEL"),
   };
+  const geminiLiveBaseUrl = process.env.GEMINI_LIVE_BASE_URL?.trim() || llm.baseUrl;
   return {
     port,
     llm,
@@ -44,7 +45,7 @@ export function loadConfig(): Config {
     bwproxyUrl: required("BWPROXY_URL").replace(/\/$/, ""),
     geminiLive: {
       model: required("GEMINI_LIVE_MODEL"),
-      wsUrl: `${llm.baseUrl.replace(/^http/, "ws").replace(/\/$/, "")}${GEMINI_LIVE.wsPath}`,
+      wsUrl: `${geminiLiveBaseUrl.replace(/^http/, "ws").replace(/\/$/, "")}${GEMINI_LIVE.wsPath}`,
     },
   };
 }
