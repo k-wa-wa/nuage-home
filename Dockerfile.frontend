@@ -17,8 +17,8 @@ RUN npm ci
 COPY packages/shared/ packages/shared/
 COPY packages/frontend/ packages/frontend/
 
-# 接続先バックエンドの WebSocket URL（k8s 内部サービス名）
-ARG VITE_BACKEND_URL=ws://backend:8787
+# ブラウザが接続する WebSocket の公開 URL（HTTPS 配信のため wss:// を使用）
+ARG VITE_BACKEND_URL=wss://home.wpcapp.net
 ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
 
 # フロントエンドのビルドを実行する
