@@ -69,11 +69,31 @@ describe("runAgent", () => {
     expect(calls[1].at(-1)).toMatchObject({ role: "tool", content: expect.stringContaining("登録されていない") })
   })
 
-  it(`ツール呼び出しが ${MAX_TOOL_STEPS} 回続いたら打ち切って定型文を返す`, async () => {
+  it(`ツール呼び出しが ${MAX_TOOL_STEPS} 回続いた場合、最終要約を試み、それでも回答が無ければ定型文を返す`, async () => {
     const { deps, chat } = setup([{ content: null, tool_calls: [toolCall("nope", "{}")] }])
 
     await expect(runAgent(history, deps)).resolves.toBe(FALLBACK_REPLY)
-    expect(chat).toHaveBeenCalledTimes(MAX_TOOL_STEPS)
+    expect(chat).toHaveBeenCalledTimes(MAX_TOOL_STEPS + 1)
+  })
+
+  it(`ツール呼び出しが ${MAX_TOOL_STEPS} 回続いた後、最終要約で回答が得られればその回答を返す`, async () => {
+    const chat = vi
+      .fn()
+      .mockResolvedValueOnce({ content: null, tool_calls: [toolCall("weather", "{}")] })
+      .mockResolvedValueOnce({ content: null, tool_calls: [toolCall("weather", "{}")] })
+      .mockResolvedValueOnce({ content: null, tool_calls: [toolCall("weather", "{}")] })
+      .mockResolvedValueOnce({ content: "最終調査結果レポートです。" })
+    const registry = new SkillRegistry()
+    registry.register({
+      name: "weather",
+      description: "",
+      parameters: { type: "object", properties: {} },
+      execute: async () => "晴れ",
+    })
+    const deps: AgentDeps = { chat, registry, logger: { info: () => {} } }
+
+    await expect(runAgent(history, deps)).resolves.toBe("最終調査結果レポートです。")
+    expect(chat).toHaveBeenCalledTimes(MAX_TOOL_STEPS + 1)
   })
 
   it("回答が空なら定型文を返す", async () => {

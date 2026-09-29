@@ -5,17 +5,27 @@ import { config } from "./config.ts"
 import { runAgent, type AgentDeps } from "./agent.ts"
 import { createLiteLlmChat } from "./llm-client.ts"
 import { mockChat } from "./mock-llm.ts"
-import { createDefaultSkillRegistry } from "./skills/index.ts"
+import { createDefaultSkillRegistry, createRunAgentSkill, SkillRegistry } from "./skills/index.ts"
+import { GeminiLiveSession } from "./gemini-live/session.ts"
 
 const app = Fastify({ logger: true })
 await app.register(websocketPlugin)
 
-const skillRegistry = createDefaultSkillRegistry()
+// 1. バックエンド自律エージェント用の基本レジストリ（web_search, weather, wikipedia など）
+// run_agent スキルは含めず、自己再帰（無限ループ）を防止する
+const baseSkillRegistry = createDefaultSkillRegistry()
 const agentDeps: AgentDeps = {
   chat: config.useMockLlm ? mockChat : createLiteLlmChat(config.llm),
-  registry: skillRegistry,
+  registry: baseSkillRegistry,
   logger: app.log,
 }
+
+// 2. Gemini Live 用のスキルレジストリ（基本スキル + run_agent）
+const liveSkillRegistry = new SkillRegistry()
+for (const skill of baseSkillRegistry.list()) {
+  liveSkillRegistry.register(skill)
+}
+liveSkillRegistry.register(createRunAgentSkill(agentDeps))
 
 if (config.useMockLlm) app.log.warn("LITELLM_MOCK active: returning canned LLM responses")
 
@@ -39,7 +49,7 @@ function parseClientMessage(raw: string): ClientMessage | { error: string } | nu
 
 app.get("/", async () => ({
   status: "ok",
-  skills: skillRegistry.list().map((s) => ({ name: s.name, description: s.description })),
+  skills: liveSkillRegistry.list().map((s) => ({ name: s.name, description: s.description })),
 }))
 
 app.get("/ws", { websocket: true }, (socket) => {
@@ -66,6 +76,61 @@ app.get("/ws", { websocket: true }, (socket) => {
     } catch (err) {
       send({ type: "error", message: String(err) })
     }
+  })
+})
+
+app.get("/ws/live", { websocket: true }, (socket) => {
+  const sendToClient = (data: string) => {
+    if (socket.readyState === socket.OPEN) {
+      socket.send(data)
+    }
+  }
+
+  // クライアント専用のレジストリを作成し、run_agent の進行イベントをリアルタイム中継する
+  const sessionRegistry = new SkillRegistry()
+  for (const skill of baseSkillRegistry.list()) {
+    sessionRegistry.register(skill)
+  }
+  const sessionAgentDeps: AgentDeps = {
+    ...agentDeps,
+    onEvent: (event) => {
+      sendToClient(JSON.stringify({ type: "agent_event", event }))
+    },
+  }
+  sessionRegistry.register(createRunAgentSkill(sessionAgentDeps))
+
+  const session = new GeminiLiveSession(
+    {
+      model: config.geminiLive.model,
+      systemInstruction:
+        "あなたは親しみやすく賢い家庭用AIアシスタントです。簡潔に分かりやすい日本語で話してください。日常的な会話や単発の事実確認（今日の天気など）は直接答えたり個別ツールを呼び出してください。多角的な調査や深い分析・比較、あるいはユーザーから「詳しく調べて」「エージェントに依頼して」などの要求があった場合は、必ず run_agent ツールを使ってバックエンドの自律エージェントに調査を委譲してください。エージェントから調査レポートが返ってきたら、その要点や結論をわかりやすくユーザーに音声で解説してください。",
+      registry: sessionRegistry,
+    },
+    sendToClient,
+  )
+
+  session.start().catch((err) => {
+    app.log.error({ err }, "Failed to start Gemini Live session")
+    socket.send(JSON.stringify({ type: "error", message: String(err) }))
+  })
+
+  socket.on("message", (raw: Buffer) => {
+    try {
+      const msg = JSON.parse(raw.toString()) as { type: string; data?: string }
+      if (msg.type === "audio" && typeof msg.data === "string") {
+        session.appendAudioChunk(msg.data)
+      } else if (msg.type === "speech_start" || msg.type === "speech_cancel") {
+        session.resetSpeechBuffer()
+      } else if (msg.type === "turn_complete") {
+        session.sendTurnComplete()
+      }
+    } catch {
+      // 不正なJSONは無視
+    }
+  })
+
+  socket.on("close", () => {
+    session.close()
   })
 })
 

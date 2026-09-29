@@ -5,6 +5,7 @@ import { wikipediaSkill } from "./builtin/wikipedia.ts"
 
 export * from "./types.ts"
 export * from "./registry.ts"
+export * from "./builtin/run-agent.ts"
 
 /**
  * デフォルトのスキルレジストリを作成・初期化する

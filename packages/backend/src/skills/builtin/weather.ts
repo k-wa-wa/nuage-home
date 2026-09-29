@@ -77,20 +77,21 @@ interface OpenMeteoForecastResponse {
 type DailyForecast = NonNullable<OpenMeteoForecastResponse["daily"]>
 
 function formatDailyForecast(label: string, daily: DailyForecast, i: number): string {
+  const dateStr = daily.time[i] ?? ""
   const cond = weatherCodeToText(daily.weather_code[i])
   const max = Math.round(daily.temperature_2m_max[i])
   const min = Math.round(daily.temperature_2m_min[i])
   const rain = daily.precipitation_probability_max[i] ?? 0
-  return `${label}: ${cond}、最高 ${max}℃ / 最低 ${min}℃、降水確率 ${rain}%`
+  return `${label}（${dateStr}）: ${cond}、最高 ${max}℃ / 最低 ${min}℃、降水確率 ${rain}%`
 }
 
 /**
  * 天気予報スキル
- * Open-Meteo API を利用し、指定地域の現在天気および今日・明日の予報を取得する。
+ * Open-Meteo API を利用し、指定地域の現在天気および今日・明日・明後日・週間の予報を取得する。
  */
 export const weatherSkill: SkillDefinition = {
   name: "weather",
-  description: "指定した地域の現在の天気、気温、降水確率、今日・明日の予報を取得する",
+  description: "指定した地域の現在の天気、気温、降水確率、今日・明日・明後日および週間（最大7日間）の天気予報を取得する",
   parameters: {
     type: "object",
     properties: {
@@ -152,9 +153,13 @@ export const weatherSkill: SkillDefinition = {
         lines.push(`現在: ${cond}、気温 ${Math.round(current.temperature_2m)}℃`)
       }
 
-      if (daily && daily.time.length >= 2) {
-        lines.push(formatDailyForecast("今日", daily, 0))
-        lines.push(formatDailyForecast("明日", daily, 1))
+      if (daily && daily.time.length > 0) {
+        const relativeLabels = ["今日", "明日", "明後日", "3日後", "4日後", "5日後", "6日後"]
+        const count = Math.min(daily.time.length, 7)
+        for (let i = 0; i < count; i++) {
+          const label = relativeLabels[i] ?? `${i}日後`
+          lines.push(formatDailyForecast(label, daily, i))
+        }
       }
 
       return lines.join("\n")

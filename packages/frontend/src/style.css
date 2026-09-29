@@ -42,3 +42,46 @@ main {
   padding: 0.4em 0;
   border-bottom: 1px solid #333;
 }
+
+.agent-card {
+  margin: 0.6rem 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #ccc;
+}
+
+.agent-card summary {
+  cursor: pointer;
+  color: #64b5f6;
+  font-weight: 500;
+  outline: none;
+  user-select: none;
+}
+
+.agent-card-steps {
+  margin-top: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid rgba(100, 181, 246, 0.3);
+}
+
+.agent-step-item {
+  margin: 0.35rem 0;
+  line-height: 1.4;
+}
+
+.agent-step-tool {
+  color: #ffb74d;
+  font-weight: 500;
+}
+
+.agent-step-result {
+  color: #888;
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+  white-space: pre-wrap;
+  max-height: 100px;
+  overflow-y: auto;
+}
