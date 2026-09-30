@@ -75,11 +75,15 @@ export class VoiceClient {
     });
 
     this.player = new AudioPlayer((playing) => {
-      if (!this.running) return;
       // backend の発言権（Floor）管理は、生成完了ではなく再生状態で Live の発話終了を判定する
       this.send({ type: "playback_state", playing });
-      if (playing) this.cb.onStateChange("speaking");
-      else if (!this.thinking) this.cb.onStateChange("listening");
+      if (playing) {
+        this.cb.onStateChange("speaking");
+      } else if (this.running) {
+        if (!this.thinking) this.cb.onStateChange("listening");
+      } else {
+        this.cb.onStateChange("stopped");
+      }
     });
   }
 
@@ -225,7 +229,9 @@ export class VoiceClient {
         this.discarding = false;
         this.thinking = false;
         this.cb.onModelTurnComplete();
-        if (!this.player.playing) this.cb.onStateChange("listening");
+        if (!this.player.playing) {
+          this.cb.onStateChange(this.running ? "listening" : "stopped");
+        }
         return;
       case "user_transcript":
         this.cb.onUserTranscript(msg.text);

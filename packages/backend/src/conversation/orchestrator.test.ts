@@ -374,4 +374,60 @@ describe("Orchestrator", () => {
     expect(orch.isLiveActive).toBe(false);
     expect(out).toContainEqual({ type: "voice_stopped" });
   });
+
+  it("タスク実行中に voice_stop しても Live を維持し、タスク完了時に読み上げ通知を送る", async () => {
+    const { live, orch, job, userTurn, at } = await setup();
+    userTurn("autopilot 調べて");
+    live.emit({
+      type: "tool_call",
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "PR の調査" } }],
+    });
+    await flush();
+
+    // タスク実行中にマイク（オーブ）を停止
+    orch.handleClient({ type: "voice_stop" });
+    // 実行中タスクがあるため Live は維持される
+    expect(orch.isLiveActive).toBe(true);
+
+    // 会話が途切れた後にタスクが完了
+    at(30_000);
+    job.resolve("PR は e2e のタイムアウトで失敗");
+    await flush();
+    await orch.tick();
+
+    expect(live.sent.at(-1)).toEqual({
+      kind: "prompt",
+      text: "[通知] 要約: PR は e2e のタイムアウトで失敗",
+    });
+  });
+
+  it("Live が停止中でも、通知が発生したら自動で Live を起動して読み上げる", async () => {
+    let now = 0;
+    const live = new FakeLive();
+    const hub = new OrchestrationHub(() => now);
+    const out: ConversationServerMessage[] = [];
+    const orch = new Orchestrator({
+      live,
+      hub,
+      apps: [{ name: "autopilot", description: "開発", ask: async () => "ok" }],
+      summarize: async (detail) => `要約: ${detail}`,
+      send: (m) => out.push(m),
+      manualTick: true,
+    });
+    await orch.start();
+    expect(orch.isLiveActive).toBe(false);
+
+    // 猶予（grace）を超えた時刻に進めて通知を追加
+    now = 10_000;
+    orch.handleClient({ type: "debug_notify", priority: "normal", summary: "リサーチ完了" });
+    await flush();
+    await orch.tick();
+
+    // 自動で Live が起動し、読み上げ指示が送られる
+    expect(orch.isLiveActive).toBe(true);
+    expect(live.sent.at(-1)).toEqual({
+      kind: "prompt",
+      text: "[通知] リサーチ完了",
+    });
+  });
 });

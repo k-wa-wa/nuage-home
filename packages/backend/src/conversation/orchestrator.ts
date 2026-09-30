@@ -7,7 +7,14 @@ import type { AppAgent } from "../agents/types.ts";
 import { TUNING } from "../constants.ts";
 import type { LiveEvent, LivePort, LiveToolCall, UserTurn } from "../live/port.ts";
 import type { Summarizer } from "../tasks/summarizer.ts";
-import { type Floor, type FloorEvent, initialFloor, reduceFloor } from "./floor.ts";
+import {
+  canSpeak,
+  type Floor,
+  type FloorEvent,
+  initialFloor,
+  isConversationActive,
+  reduceFloor,
+} from "./floor.ts";
 import type { OrchestrationHub } from "./hub.ts";
 import { formatLocation, reverseGeocode } from "./location.ts";
 import { buildSystemInstruction } from "./prompt.ts";
@@ -83,7 +90,11 @@ export class Orchestrator {
   }
 
   async startLive(): Promise<void> {
-    if (this.liveActive || this.liveStarting) return;
+    if (this.liveActive) {
+      this.opts.send({ type: "voice_ready" });
+      return;
+    }
+    if (this.liveStarting) return;
     this.liveStarting = true;
     try {
       await this.opts.live.start({
@@ -99,7 +110,17 @@ export class Orchestrator {
     }
   }
 
-  stopLive(): void {
+  stopLive(force = false): void {
+    // 実行中のタスクがある場合は、結果を音声で報告するために Live セッションを維持する
+    const hasRunningTasks = this.opts.hub.tasks.list().some((t) => t.status === "running");
+    if (!force && hasRunningTasks) {
+      this.opts.send({ type: "voice_stopped" });
+      if (this.floor.state !== "idle") {
+        this.apply({ type: "user_speech_cancel" });
+      }
+      return;
+    }
+
     if (!this.liveActive) return;
     this.opts.live.close();
     this.liveActive = false;
@@ -179,9 +200,37 @@ export class Orchestrator {
   }
 
   /** 通知キューを評価し、配送アクションを実行する */
-  tick(): void {
+  async tick(): Promise<void> {
     const { hub, live } = this.opts;
+
+    // Live が未起動でも、読み上げ可能な通知（speak）があるなら自動で起動する
+    if (!this.liveActive && !this.liveStarting) {
+      const now = hub.clock();
+      const hasUrgent = hub.queue
+        .list()
+        .some((n) => n.state === "queued" && n.priority === "urgent");
+      const grace = hasUrgent ? TUNING.floor.urgentGraceMs : TUNING.floor.graceMs;
+      if (canSpeak(this.floor, now, grace, TUNING.floor)) {
+        const conversing = isConversationActive(this.floor, now, TUNING.floor);
+        const hasReady = hub.queue
+          .list()
+          .some(
+            (n) =>
+              (n.state === "queued" && n.priority !== "low") ||
+              (n.state === "piggybacked" && !conversing),
+          );
+        if (hasReady) {
+          try {
+            await this.startLive();
+          } catch {
+            return;
+          }
+        }
+      }
+    }
+
     if (!this.liveActive) return;
+
     const { actions, changed } = hub.queue.plan(this.floor, hub.clock());
     for (const action of actions) {
       if (action.type === "context") {
@@ -200,7 +249,7 @@ export class Orchestrator {
     if (this.timer) clearInterval(this.timer);
     for (const u of this.unsubscribers) u();
     this.unsubscribers = [];
-    this.stopLive();
+    this.stopLive(true);
   }
 
   private userTurn(turn: UserTurn, label: string): void {
