@@ -22,7 +22,7 @@ registerRoutes(app, {
   sandboxHub: new OrchestrationHub(),
   researchAgent: createResearchAgent({
     chat,
-    tools: createResearchTools(config.bwproxyUrl),
+    tools: createResearchTools(config.searxngUrl, config.bwproxyUrl),
     logger: app.log,
   }),
   liveTools: createLiveTools(),

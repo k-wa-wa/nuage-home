@@ -24,8 +24,14 @@ export const TUNING = {
   summaryTimeoutMs: 15_000,
   /** これより短い発話はノイズとして捨てる（16kHz・16bit・モノラルで 0.35 秒） */
   minSpeechBytes: 11_200,
-  /** 調査エージェントがツールを呼べる最大回数 */
-  researchMaxToolSteps: 3,
+  /** 調査エージェントがツールを呼べる最大回数。自律的に検索・閲覧・再試行できるよう余裕を持たせる */
+  researchMaxToolSteps: 8,
+  searxng: {
+    /** SearXNG 検索のタイムアウト */
+    timeoutMs: 10_000,
+    /** Web 検索で返す件数 */
+    searchResults: 5,
+  },
   bwproxy: {
     /** bwproxy のレンダリング上限（30 秒）に通信分を足した値 */
     timeoutMs: 35_000,

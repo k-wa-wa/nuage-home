@@ -3,9 +3,6 @@ import { TUNING } from "../constants.ts";
 /**
  * bare-web-proxy（bwproxy）経由のページ取得。
  * プログラムモード（X-Program-Mode: true）で、ナビゲーションや装飾を落とした軽量 HTML を受け取る。
- * 検索エンジンは Yahoo! JAPAN を使う（呼び出し元の User-Agent に関係なく安定して結果が取れる）。
- * bwproxy の `q=`（DuckDuckGo）は、bwproxy が呼び出し元の User-Agent を使っていたためボット判定で弾かれていた。
- * プログラムモードでは既定のブラウザの User-Agent を使うよう bwproxy を変更した（2026-09-29、要デプロイ）。
  */
 
 export class BwproxyError extends Error {}
@@ -21,29 +18,6 @@ export async function fetchViaBwproxy(bwproxyUrl: string, targetUrl: string): Pr
     throw new BwproxyError(`bwproxy が失敗した（HTTP ${res.status}）: ${body.slice(0, 200)}`);
   }
   return res.text();
-}
-
-export function yahooSearchUrl(query: string): string {
-  return `https://search.yahoo.co.jp/search?p=${encodeURIComponent(query)}`;
-}
-
-export interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-}
-
-/** Yahoo! JAPAN の検索結果ページ（bwproxy のプログラムモード）から結果を取り出す */
-export function parseYahooResults(html: string): SearchResult[] {
-  const results: SearchResult[] = [];
-  const item = /<li><a href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a><div>([\s\S]*?)<\/div>/g;
-  for (const m of html.matchAll(item)) {
-    const url = decodeEntities(m[1]);
-    // Yahoo 自身のヘルプ等は結果ではない
-    if (/^https?:\/\/[^/]*yahoo(-net)?\.(co\.jp|jp|com)\//.test(url)) continue;
-    results.push({ title: htmlToText(m[2]), url, snippet: htmlToText(m[3]) });
-  }
-  return results;
 }
 
 /** HTML を LLM に渡すためのプレーンテキストにする */

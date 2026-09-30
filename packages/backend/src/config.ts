@@ -18,8 +18,10 @@ export interface Config {
   llm: LlmConfig;
   /** 結果の要約に使うモデル（LiteLLM のモデル名）。応答の速いものを選ぶ */
   summaryModel: string;
-  /** bare-web-proxy のベース URL（Web 検索・ページ取得） */
+  /** bare-web-proxy のベース URL（ページ取得） */
   bwproxyUrl: string;
+  /** SearXNG のベース URL（Web 検索） */
+  searxngUrl: string;
   geminiLive: {
     model: string;
     /** LiteLLM の Gemini Live パススルー（LITELLM_BASE_URL から導く） */
@@ -43,6 +45,7 @@ export function loadConfig(): Config {
     llm,
     summaryModel: required("LITELLM_SUMMARY_MODEL"),
     bwproxyUrl: required("BWPROXY_URL").replace(/\/$/, ""),
+    searxngUrl: required("SEARXNG_URL").replace(/\/$/, ""),
     geminiLive: {
       model: required("GEMINI_LIVE_MODEL"),
       wsUrl: `${geminiLiveBaseUrl.replace(/^http/, "ws").replace(/\/$/, "")}${GEMINI_LIVE.wsPath}`,

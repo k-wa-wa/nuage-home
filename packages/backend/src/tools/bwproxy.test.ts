@@ -1,12 +1,7 @@
-import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TUNING } from "../constants.ts";
-import { BwproxyError, fetchViaBwproxy, htmlToText, parseYahooResults } from "./bwproxy.ts";
+import { BwproxyError, fetchViaBwproxy, htmlToText } from "./bwproxy.ts";
 import { createFetchPageTool } from "./fetch-page.ts";
-import { createWebSearchTool } from "./web-search.ts";
-
-/** 2026-09-29 に bwproxy のプログラムモード経由で取得した Yahoo! JAPAN の検索結果を縮めたもの */
-const yahooHtml = readFileSync(new URL("./testdata/yahoo-search.html", import.meta.url), "utf8");
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -17,24 +12,6 @@ function stubFetch(body: string, status = 200) {
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
-
-describe("parseYahooResults", () => {
-  it("タイトル・URL・抜粋を取り出し、Yahoo 自身のリンクは除く", () => {
-    const results = parseYahooResults(yahooHtml);
-    expect(results.map((r) => r.url)).toEqual([
-      "https://weathernews.jp/koyo/area/kyoto/calendar.html",
-      "https://koyo.walkerplus.com/list/ar0726/",
-    ]);
-    expect(results[0].title).toBe("例年の紅葉見頃カレンダー（京都）【2026】 - ウェザーニュース");
-    expect(results[0].snippet).toContain("ウェザーニューズが算出しています");
-  });
-
-  it("結果が無いページ（ボット判定など）では空配列を返す", () => {
-    expect(
-      parseYahooResults("<html><body>Unfortunately, bots use DuckDuckGo too.</body></html>"),
-    ).toEqual([]);
-  });
-});
 
 describe("htmlToText", () => {
   it("script・style を捨て、ブロック要素で改行し、実体参照を戻す", () => {
@@ -59,26 +36,6 @@ describe("fetchViaBwproxy", () => {
     await expect(fetchViaBwproxy("https://bw.example", "https://a.example")).rejects.toBeInstanceOf(
       BwproxyError,
     );
-  });
-});
-
-describe("web_search", () => {
-  it("Yahoo! JAPAN の検索 URL を bwproxy 経由で取得し、結果を番号付きで返す", async () => {
-    const fetchMock = stubFetch(yahooHtml);
-    const out = await createWebSearchTool("https://bw.example").execute({ query: "京都 紅葉" });
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
-      encodeURIComponent("https://search.yahoo.co.jp/search?p="),
-    );
-    expect(out).toMatch(/^1\. 例年の紅葉見頃/);
-    expect(out).toContain("2. ");
-    expect(out).toContain("https://koyo.walkerplus.com/list/ar0726/");
-  });
-
-  it("結果が無ければ、別のキーワードを促す", async () => {
-    stubFetch("<html></html>");
-    await expect(
-      createWebSearchTool("https://bw.example").execute({ query: "zzz" }),
-    ).resolves.toContain("見つからなかった");
   });
 });
 
