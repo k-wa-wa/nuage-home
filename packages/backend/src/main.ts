@@ -1,13 +1,12 @@
 import websocketPlugin from "@fastify/websocket";
 import Fastify from "fastify";
-import { createResearchAgent } from "./agents/research.ts";
+import { createResearchAgent, createResearchTools } from "./agents/research.ts";
 import { registerRoutes } from "./api/routes.ts";
 import { loadConfig } from "./config.ts";
 import { TUNING } from "./constants.ts";
 import { OrchestrationHub } from "./conversation/hub.ts";
 import { createLiteLlmChat } from "./llm/client.ts";
 import { createLlmSummarizer, plainSummarizer, withFallback } from "./tasks/summarizer.ts";
-import { createResearchTools } from "./tools/index.ts";
 
 const config = loadConfig();
 const app = Fastify({ logger: true });

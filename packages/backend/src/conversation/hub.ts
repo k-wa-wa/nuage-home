@@ -10,10 +10,11 @@ import { type NewNotification, NotificationQueue } from "./notification-queue.ts
  * どの専門エージェント・要約を使うかは接続ごとに決める（Orchestrator 側で持つ）。
  */
 export class OrchestrationHub {
-  tasks: TaskManager;
+  readonly tasks: TaskManager;
   queue: NotificationQueue;
   readonly clock: () => number;
   readonly timing: FloorTiming;
+  private generation = 0;
   private taskListeners = new Set<(task: Task) => void>();
   private notificationListeners = new Set<(n: Notification) => void>();
   private wakeListeners = new Set<() => void>();
@@ -21,18 +22,21 @@ export class OrchestrationHub {
   constructor(clock: () => number = Date.now, timing: FloorTiming = DEFAULT_FLOOR_TIMING) {
     this.clock = clock;
     this.timing = timing;
-    this.tasks = this.createTaskManager();
+    this.tasks = new TaskManager(this.clock);
+    this.tasks.subscribe((task) => {
+      for (const l of this.taskListeners) l(task);
+    });
     this.queue = new NotificationQueue(timing);
   }
 
   /** タスクと通知をすべて消す。実行中のタスクは中止し、結果も通知しない */
   reset(): void {
-    this.tasks.abortAll();
-    this.tasks = this.createTaskManager();
+    this.generation++;
+    this.tasks.clear();
     this.queue = new NotificationQueue(this.timing);
   }
 
-  /** タスクの状態変化を購読する。reset で TaskManager が入れ替わっても購読は続く */
+  /** タスクの状態変化を購読する */
   subscribeTasks(listener: (task: Task) => void): () => void {
     this.taskListeners.add(listener);
     return () => this.taskListeners.delete(listener);
@@ -67,11 +71,11 @@ export class OrchestrationHub {
     runner: TaskRunner,
     summarize: Summarizer,
   ): { task: Task; done: Promise<void> } {
-    const tasks = this.tasks;
-    const task = tasks.create(input);
-    const done = tasks.run(task.id, runner).then(async (res) => {
+    const gen = this.generation;
+    const task = this.tasks.create(input);
+    const done = this.tasks.run(task.id, runner).then(async (res) => {
       // リセットされた後に終わったタスクは通知しない
-      if (!res || tasks !== this.tasks) return;
+      if (!res || gen !== this.generation) return;
       const ok = res.task.status === "succeeded";
       let summary: string;
       try {
@@ -81,19 +85,11 @@ export class OrchestrationHub {
       } catch {
         summary = firstSentence(res.output);
       }
-      if (tasks !== this.tasks) return;
+      if (gen !== this.generation) return;
       this.tasks.setSummary(task.id, summary);
       this.notify({ priority: "normal", summary, detail: res.output, taskId: task.id });
     });
     return { task, done };
-  }
-
-  private createTaskManager(): TaskManager {
-    const tasks = new TaskManager(this.clock);
-    tasks.subscribe((task) => {
-      if (tasks === this.tasks) for (const l of this.taskListeners) l(task);
-    });
-    return tasks;
   }
 }
 

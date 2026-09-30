@@ -1,8 +1,13 @@
 import type { ClientLocation } from "@nuage-home/shared";
 import { TIME_ZONE, TUNING } from "../constants.ts";
-import { formatLocation } from "../conversation/prompt.ts";
+import { formatLocation } from "../conversation/location.ts";
 import type { ChatFn, LlmMessage } from "../llm/client.ts";
-import type { ToolArgs, ToolRegistry } from "../tools/index.ts";
+import {
+  createFetchPageTool,
+  createWebSearchTool,
+  type ToolArgs,
+  ToolRegistry,
+} from "../tools/index.ts";
 import type { AppAgent } from "./types.ts";
 
 /**
@@ -17,6 +22,11 @@ export interface ResearchDeps {
 }
 
 export class ResearchError extends Error {}
+
+/** 調査エージェントが使うツールセット（Web 検索とページ取得）を構築する */
+export function createResearchTools(searxngUrl: string, bwproxyUrl: string): ToolRegistry {
+  return new ToolRegistry([createWebSearchTool(searxngUrl), createFetchPageTool(bwproxyUrl)]);
+}
 
 export function createResearchAgent(deps: ResearchDeps): AppAgent {
   return {

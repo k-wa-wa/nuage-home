@@ -34,23 +34,29 @@ export function createLlmSummarizer(chat: ChatFn): Summarizer {
   };
 }
 
+/** 音声読み上げ向けに Markdown 記号・URL・ID 等を落として平文にする */
+export function cleanMarkdownForSpeech(detail: string): string {
+  return (
+    detail
+      .split("\n")
+      // 見出し行は読み上げても意味が薄いため落とす
+      .filter((line) => !/^\s*#/.test(line))
+      .map((line) => line.replace(/^\s*(?:[-*+]|\d+\.)\s+/, ""))
+      .join("\n")
+      .replace(/\*\*|__|`/g, "")
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/\s*[（(][^）)]*[）)]/g, "")
+      .replace(/\s*#\d+/g, "")
+      .replace(/\bt-\d+\b/g, "")
+      .replace(/\s*\n\s*/g, "")
+      .replace(/ {2,}/g, " ")
+      .replace(/。\s+/g, "。")
+  );
+}
+
 /** LLM を使わない要約。Markdown の記号・番号・ID を落とし、見出しを除いた先頭の 2 文だけを残す */
 export const plainSummarizer: Summarizer = async (detail) => {
-  const cleaned = detail
-    .split("\n")
-    // 見出し行は読み上げても意味が薄いため落とす
-    .filter((line) => !/^\s*#/.test(line))
-    .map((line) => line.replace(/^\s*(?:[-*+]|\d+\.)\s+/, ""))
-    .join("\n")
-    .replace(/\*\*|__|`/g, "")
-    .replace(/https?:\/\/\S+/g, "")
-    .replace(/\s*[（(][^）)]*[）)]/g, "")
-    .replace(/\s*#\d+/g, "")
-    .replace(/\bt-\d+\b/g, "")
-    .replace(/\s*\n\s*/g, "")
-    .replace(/ {2,}/g, " ")
-    .replace(/。\s+/g, "。");
-  return cleaned
+  return cleanMarkdownForSpeech(detail)
     .split(/(?<=。)/)
     .slice(0, 2)
     .join("")

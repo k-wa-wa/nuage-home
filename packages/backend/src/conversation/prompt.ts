@@ -1,7 +1,6 @@
 import type { ClientLocation } from "@nuage-home/shared";
 import type { AppAgent } from "../agents/types.ts";
 import { TIME_ZONE } from "../constants.ts";
-import type { FunctionDeclaration } from "../live/port.ts";
 import { formatLocation } from "./location.ts";
 import { PIGGYBACK_TAG, SPEAK_TAG } from "./notification-queue.ts";
 
@@ -39,44 +38,4 @@ export function buildSystemInstruction(
   ].join("\n");
 }
 
-export function buildTools(apps: AppAgent[]): FunctionDeclaration[] {
-  const appNames = apps.map((a) => a.name);
-  return [
-    {
-      name: "add_task",
-      description: "利用できるアプリに時間のかかる作業や調査を依頼する。結果は後で通知として届く。",
-      parameters: {
-        type: "object",
-        properties: {
-          instruction: {
-            type: "string",
-            description: "依頼内容（ユーザーの言葉を具体的にしたもの）",
-          },
-          ...(appNames.length > 0
-            ? {
-                app: {
-                  type: "string",
-                  description: `依頼先のアプリ名（${apps.map((a) => `${a.name}: ${a.description}`).join("、")}）`,
-                  ...(appNames.length > 1 ? { enum: appNames } : {}),
-                },
-              }
-            : {}),
-        },
-        required: ["instruction"],
-      },
-    },
-    {
-      name: "task_status",
-      description: "頼んだ作業の進み具合と結果を確認する",
-      parameters: { type: "object", properties: {} },
-    },
-    {
-      name: "cancel_task",
-      description: "頼んだ作業を取り消す。対象を省略すると直近の作業を取り消す",
-      parameters: {
-        type: "object",
-        properties: { target: { type: "string", description: "取り消す作業を特定する言葉" } },
-      },
-    },
-  ];
-}
+export { buildTools } from "./tools.ts";

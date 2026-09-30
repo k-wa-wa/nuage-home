@@ -76,9 +76,17 @@ export class TaskManager {
     }
   }
 
-  /** 実行中のタスクをすべて中止する。状態は更新しない（TaskManager ごと捨てるときに使う） */
+  /** 実行中のタスクをすべて中止する。状態は更新しない */
   abortAll(): void {
     for (const c of this.controllers.values()) c.abort();
+  }
+
+  /** 実行中のタスクをすべて中止し、タスク一覧を空にする */
+  clear(): void {
+    this.abortAll();
+    this.controllers.clear();
+    this.tasks.clear();
+    this.seq = 0;
   }
 
   /** 音声向け要約を付ける */

@@ -10,6 +10,14 @@
 
 export type TaskStatus = "accepted" | "running" | "succeeded" | "failed" | "cancelled";
 
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  accepted: "受付済み",
+  running: "実行中",
+  succeeded: "完了",
+  failed: "失敗",
+  cancelled: "取り消し",
+};
+
 export interface Task {
   id: string;
   /** 仕事を引き受けた専門エージェントの名前 */

@@ -2,7 +2,6 @@ import type {
   ConversationClientMessage,
   ConversationServerMessage,
   LiveIoRecord,
-  Task,
 } from "@nuage-home/shared";
 import type { AppAgent } from "../agents/types.ts";
 import { TUNING } from "../constants.ts";
@@ -11,7 +10,8 @@ import type { Summarizer } from "../tasks/summarizer.ts";
 import { type Floor, type FloorEvent, initialFloor, reduceFloor } from "./floor.ts";
 import type { OrchestrationHub } from "./hub.ts";
 import { formatLocation, reverseGeocode } from "./location.ts";
-import { buildSystemInstruction, buildTools } from "./prompt.ts";
+import { buildSystemInstruction } from "./prompt.ts";
+import { type ConversationTool, createConversationTools } from "./tools.ts";
 
 /**
  * 1 つの会話（接続）を受け持ち、Live・タスク・通知を統制する。
@@ -40,11 +40,18 @@ export class Orchestrator {
   private audioChunks: Buffer[] = [];
   private liveActive = false;
   private liveStarting = false;
+  private readonly tools: Map<string, ConversationTool>;
   private readonly opts: OrchestratorOptions;
 
   constructor(opts: OrchestratorOptions) {
     this.opts = opts;
     this.floor = initialFloor(opts.hub.clock());
+    const toolList = createConversationTools({
+      hub: opts.hub,
+      apps: opts.apps,
+      summarize: opts.summarize,
+    });
+    this.tools = new Map(toolList.map((t) => [t.declaration.name, t]));
   }
 
   get floorState(): Floor {
@@ -81,7 +88,7 @@ export class Orchestrator {
     try {
       await this.opts.live.start({
         systemInstruction: buildSystemInstruction(this.opts.apps),
-        tools: buildTools(this.opts.apps),
+        tools: Array.from(this.tools.values()).map((t) => t.declaration),
       });
       this.liveActive = true;
       this.opts.send({ type: "voice_ready" });
@@ -246,59 +253,11 @@ export class Orchestrator {
     this.opts.live.sendToolResponses(responses);
   }
 
-  /** タスク操作（受付・状況確認・取消）を行う */
+  /** ツール呼び出しを該当ツールにディスパッチする */
   private async handleToolCall(call: LiveToolCall): Promise<Record<string, unknown>> {
-    const { hub, apps, summarize } = this.opts;
-
-    if (call.name === "add_task") {
-      const instruction = typeof call.args.instruction === "string" ? call.args.instruction : "";
-      if (!instruction) return { status: "rejected", message: "依頼内容が空である。" };
-
-      const targetAppName = typeof call.args.app === "string" ? call.args.app : undefined;
-      const app =
-        (targetAppName ? apps.find((a) => a.name === targetAppName) : undefined) ?? apps[0];
-      if (!app) return { status: "rejected", message: "対応できるアプリがない。" };
-
-      hub.startTask(
-        { app: app.name, instruction, origin: "voice" },
-        (signal) => app.ask(instruction, signal),
-        summarize,
-      );
-      return { status: "accepted", message: "受け付けた。結果は終わりしだい伝える。" };
-    }
-
-    if (call.name === "task_status") {
-      const list = hub.tasks.list().slice(0, 5);
-      if (list.length === 0) return { tasks: [], message: "頼まれている作業はない。" };
-      // ID は音声で読み上げると聞き取りにくいため含めない
-      return {
-        tasks: list.map((t) => ({
-          app: t.app,
-          instruction: t.instruction,
-          status: STATUS_LABEL[t.status],
-          summary: t.summary,
-        })),
-      };
-    }
-
-    if (call.name === "cancel_task") {
-      const target = typeof call.args.target === "string" ? call.args.target : "";
-      const match = target
-        ? hub.tasks
-            .list()
-            .find(
-              (t) =>
-                (t.status === "accepted" || t.status === "running") &&
-                t.instruction.includes(target),
-            )
-        : undefined;
-      const cancelled = hub.tasks.cancel(match?.id);
-      return cancelled
-        ? { status: "cancelled", instruction: cancelled.instruction }
-        : { status: "not_found", message: "取り消せる作業はない。" };
-    }
-
-    return { status: "error", message: `未知のツール: ${call.name}` };
+    const tool = this.tools.get(call.name);
+    if (!tool) return { status: "error", message: `未知のツール: ${call.name}` };
+    return tool.execute(call.args);
   }
 
   private apply(event: FloorEvent): void {
@@ -312,11 +271,3 @@ export class Orchestrator {
     this.opts.send({ type: "live_io", record, at: this.opts.hub.clock() });
   }
 }
-
-const STATUS_LABEL: Record<Task["status"], string> = {
-  accepted: "受付済み",
-  running: "実行中",
-  succeeded: "完了",
-  failed: "失敗",
-  cancelled: "取り消し",
-};
