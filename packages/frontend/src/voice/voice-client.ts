@@ -30,6 +30,7 @@ export interface VoiceClientCallbacks {
  */
 export class VoiceClient {
   private ws: WebSocket | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly recorder: AudioRecorder;
   private readonly player: AudioPlayer;
   private running = false;
@@ -86,6 +87,49 @@ export class VoiceClient {
     return this.running;
   }
 
+  /** WebSocket を接続し、タスクや通知の常時同期を開始する */
+  connect(): void {
+    if (this.ws) return;
+    const ws = new WebSocket(this.url);
+    this.ws = ws;
+
+    ws.onopen = () => {
+      this.sendLocation();
+      if (this.running) {
+        this.send({ type: "voice_start" });
+      }
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        this.handle(JSON.parse(String(event.data)) as ConversationServerMessage);
+      } catch (err) {
+        console.error("[VoiceClient] メッセージのパースに失敗:", err);
+      }
+    };
+
+    ws.onerror = () => {
+      // エラー時は onclose で再接続処理
+    };
+
+    ws.onclose = (event) => {
+      if (this.ws !== ws) return;
+      this.ws = null;
+      if (this.running) {
+        this.stop(new Error(`切断された (${event.code} ${event.reason})`));
+      }
+      this.scheduleReconnect();
+    };
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, 3000);
+  }
+
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -107,20 +151,11 @@ export class VoiceClient {
       return;
     }
 
-    const ws = new WebSocket(this.url);
-    this.ws = ws;
-    ws.onopen = () => {
-      this.sendLocation();
-    };
-    ws.onmessage = (event) =>
-      this.handle(JSON.parse(String(event.data)) as ConversationServerMessage);
-    ws.onerror = () => this.stop(new Error("会話サーバーへの接続に失敗した"));
-    ws.onclose = (event) => {
-      if (this.ws !== ws) return;
-      if (event.code !== 1000 && event.code !== 1005)
-        this.stop(new Error(`切断された (${event.code} ${event.reason})`));
-      else this.stop();
-    };
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.connect();
+    } else {
+      this.send({ type: "voice_start" });
+    }
   }
 
   private sendLocation(): void {
@@ -144,15 +179,18 @@ export class VoiceClient {
   }
 
   stop(error?: Error): void {
+    const wasRunning = this.running;
     this.running = false;
     this.thinking = false;
     this.modelTurnActive = false;
     this.discarding = false;
     this.recorder.stop();
     this.player.interrupt();
-    const ws = this.ws;
-    this.ws = null;
-    ws?.close();
+
+    if (wasRunning) {
+      this.send({ type: "voice_stop" });
+    }
+
     if (error) this.cb.onError(error);
     else this.cb.onStateChange("stopped");
   }
@@ -166,7 +204,12 @@ export class VoiceClient {
   private handle(msg: ConversationServerMessage): void {
     switch (msg.type) {
       case "ready":
-        this.cb.onStateChange("listening");
+        return;
+      case "voice_ready":
+        if (this.running) this.cb.onStateChange("listening");
+        return;
+      case "voice_stopped":
+        if (this.running) this.stop();
         return;
       case "model_audio":
         this.modelTurnActive = true;

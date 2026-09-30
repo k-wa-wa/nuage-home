@@ -71,6 +71,8 @@ async function setup() {
     manualTick: true,
   });
   await orch.start();
+  orch.handleClient({ type: "voice_start" });
+  await flush();
   return {
     live,
     hub,
@@ -338,5 +340,38 @@ describe("Orchestrator", () => {
       kind: "context",
       text: "現在地: 東京都 新宿区 西新宿（緯度 35.6895, 経度 139.6917）",
     });
+  });
+
+  it("初期化時は Live を起動せずタスクのみ復元し、voice_start/voice_stop で制御できる", async () => {
+    const live = new FakeLive();
+    const hub = new OrchestrationHub();
+    hub.startTask(
+      { app: "autopilot", instruction: "既存のタスク", origin: "ui" },
+      async () => "ok",
+      async () => "要約",
+    );
+    const out: ConversationServerMessage[] = [];
+    const orch = new Orchestrator({
+      live,
+      hub,
+      apps: [{ name: "autopilot", description: "開発", ask: async () => "ok" }],
+      summarize: async (detail) => `要約: ${detail}`,
+      send: (m) => out.push(m),
+      manualTick: true,
+    });
+    await orch.start();
+    expect(orch.isLiveActive).toBe(false);
+    expect(live.setup).toBeNull();
+    expect(out.some((m) => m.type === "task_update")).toBe(true);
+
+    orch.handleClient({ type: "voice_start" });
+    await flush();
+    expect(orch.isLiveActive).toBe(true);
+    expect(live.setup).not.toBeNull();
+    expect(out).toContainEqual({ type: "voice_ready" });
+
+    orch.handleClient({ type: "voice_stop" });
+    expect(orch.isLiveActive).toBe(false);
+    expect(out).toContainEqual({ type: "voice_stopped" });
   });
 });

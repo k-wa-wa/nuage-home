@@ -222,6 +222,9 @@ const client = new VoiceClient(config.voiceWsUrl, {
   },
 });
 
+// 画面読み込み時に WebSocket を接続し、既存タスク・通知の受信を開始する
+client.connect();
+
 const toggleVoice = () => {
   if (!client.isRunning) interim?.start();
   client.toggle();

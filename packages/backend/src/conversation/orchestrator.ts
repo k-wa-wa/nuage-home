@@ -38,6 +38,8 @@ export class Orchestrator {
   private unsubscribers: (() => void)[] = [];
   /** 発話中の音声。発話が終わったら 1 ターンとしてまとめて送る */
   private audioChunks: Buffer[] = [];
+  private liveActive = false;
+  private liveStarting = false;
   private readonly opts: OrchestratorOptions;
 
   constructor(opts: OrchestratorOptions) {
@@ -49,8 +51,12 @@ export class Orchestrator {
     return this.floor;
   }
 
+  get isLiveActive(): boolean {
+    return this.liveActive;
+  }
+
   async start(): Promise<void> {
-    const { live, hub, apps, send } = this.opts;
+    const { live, hub, send } = this.opts;
     live.onEvent((e) => this.handleLive(e));
     this.unsubscribers.push(hub.subscribeTasks((task) => send({ type: "task_update", task })));
     this.unsubscribers.push(
@@ -59,11 +65,6 @@ export class Orchestrator {
       ),
     );
     this.unsubscribers.push(hub.subscribeWake(() => this.tick()));
-
-    await live.start({
-      systemInstruction: buildSystemInstruction(apps),
-      tools: buildTools(apps),
-    });
 
     // 再接続時に、既存のタスクと通知を画面へ復元する
     for (const task of hub.tasks.list().reverse()) send({ type: "task_update", task });
@@ -74,8 +75,39 @@ export class Orchestrator {
     if (!this.opts.manualTick) this.timer = setInterval(() => this.tick(), TUNING.tickIntervalMs);
   }
 
+  async startLive(): Promise<void> {
+    if (this.liveActive || this.liveStarting) return;
+    this.liveStarting = true;
+    try {
+      await this.opts.live.start({
+        systemInstruction: buildSystemInstruction(this.opts.apps),
+        tools: buildTools(this.opts.apps),
+      });
+      this.liveActive = true;
+      this.opts.send({ type: "voice_ready" });
+    } finally {
+      this.liveStarting = false;
+    }
+  }
+
+  stopLive(): void {
+    if (!this.liveActive) return;
+    this.opts.live.close();
+    this.liveActive = false;
+    this.opts.send({ type: "voice_stopped" });
+    if (this.floor.state !== "idle") {
+      this.apply({ type: "user_speech_cancel" });
+    }
+  }
+
   handleClient(msg: ConversationClientMessage): void {
     switch (msg.type) {
+      case "voice_start":
+        void this.startLive();
+        return;
+      case "voice_stop":
+        this.stopLive();
+        return;
       case "speech_start":
         this.audioChunks = [];
         this.apply({ type: "user_speech_start" });
@@ -123,8 +155,10 @@ export class Orchestrator {
             const address = msg.location?.address ?? (await reverseGeocode(latitude, longitude));
             const loc = { latitude, longitude, address: address ?? undefined };
             const text = formatLocation(loc);
-            this.opts.live.sendContext(text);
-            this.record({ kind: "context", text });
+            if (this.liveActive) {
+              this.opts.live.sendContext(text);
+              this.record({ kind: "context", text });
+            }
           })();
         }
         return;
@@ -138,6 +172,7 @@ export class Orchestrator {
   /** 通知キューを評価し、配送アクションを実行する */
   tick(): void {
     const { hub, live } = this.opts;
+    if (!this.liveActive) return;
     const { actions, changed } = hub.queue.plan(this.floor, hub.clock());
     for (const action of actions) {
       if (action.type === "context") {
@@ -156,7 +191,7 @@ export class Orchestrator {
     if (this.timer) clearInterval(this.timer);
     for (const u of this.unsubscribers) u();
     this.unsubscribers = [];
-    this.opts.live.close();
+    this.stopLive();
   }
 
   private userTurn(turn: UserTurn, label: string): void {

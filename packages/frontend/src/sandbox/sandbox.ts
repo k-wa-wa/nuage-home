@@ -344,6 +344,7 @@ function connect() {
   const socket = new WebSocket(`${config.sandboxWsUrl}?${query}`);
   ws = socket;
   socket.addEventListener("open", () => {
+    send({ type: "voice_start" });
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {

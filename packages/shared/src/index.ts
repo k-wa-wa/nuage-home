@@ -72,6 +72,10 @@ export interface ClientLocation {
 }
 
 export type ConversationClientMessage =
+  /** 音声会話セッションを開始する（Live に接続する） */
+  | { type: "voice_start" }
+  /** 音声会話セッションを終了する（Live から切断する。タスク等の同期は継続） */
+  | { type: "voice_stop" }
   /** ユーザーが話し始めた */
   | { type: "speech_start" }
   /** 発話を取り消した（ノイズ） */
@@ -101,6 +105,10 @@ export type LiveIoRecord =
 
 export type ConversationServerMessage =
   | { type: "ready"; modes: ConversationModes }
+  /** 音声会話セッションの準備が完了した（Live に接続済み） */
+  | { type: "voice_ready" }
+  /** 音声会話セッションが停止した */
+  | { type: "voice_stopped" }
   /** Live の音声（24kHz PCM の base64） */
   | { type: "model_audio"; data: string }
   /** Live の発話の書き起こし（断片） */

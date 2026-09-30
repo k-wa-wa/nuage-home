@@ -16,7 +16,7 @@ export interface RouteDeps {
   /** タスクと通知。音声モードとサンドボックスで分ける */
   voiceHub: OrchestrationHub;
   sandboxHub: OrchestrationHub;
-  researchAgent: AppAgent;
+  apps: AppAgent[];
   llmSummarizer: Summarizer;
 }
 
@@ -24,13 +24,9 @@ export interface RouteDeps {
 const SANDBOX_TASK_DELAYS_MS = [3000, 8000, 15_000, 30_000];
 
 export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
-  app.get("/", async () => ({
-    status: "ok",
-    tools: ["add_task", "task_status", "cancel_task"],
-    apps: [deps.researchAgent.name],
-  }));
+  app.get("/", async () => ({ status: "ok" }));
 
-  // 音声モード: すべて本物
+  // 音声モード: すべて本物。Live セッションはオーブを押すまで開始しない
   app.get("/ws/live", { websocket: true }, (socket) => {
     attachConversation(
       socket,
@@ -38,7 +34,7 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
         modes: { live: "gemini", llm: "real", tool: "real" },
         live: new GeminiLivePort(deps.config.geminiLive),
         hub: deps.voiceHub,
-        apps: [deps.researchAgent],
+        apps: deps.apps,
         summarize: deps.llmSummarizer,
       },
       (err) => app.log.error({ err }, "failed to start voice conversation"),

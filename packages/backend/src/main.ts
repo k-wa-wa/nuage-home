@@ -20,11 +20,13 @@ registerRoutes(app, {
   config,
   voiceHub: new OrchestrationHub(),
   sandboxHub: new OrchestrationHub(),
-  researchAgent: createResearchAgent({
-    chat,
-    tools: createResearchTools(config.searxngUrl, config.bwproxyUrl),
-    logger: app.log,
-  }),
+  apps: [
+    createResearchAgent({
+      chat,
+      tools: createResearchTools(config.searxngUrl, config.bwproxyUrl),
+      logger: app.log,
+    }),
+  ],
   llmSummarizer: withFallback(
     createLlmSummarizer(summaryChat),
     plainSummarizer,
