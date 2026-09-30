@@ -7,7 +7,7 @@ import { TUNING } from "./constants.ts";
 import { OrchestrationHub } from "./conversation/hub.ts";
 import { createLiteLlmChat } from "./llm/client.ts";
 import { createLlmSummarizer, plainSummarizer, withFallback } from "./tasks/summarizer.ts";
-import { createLiveTools, createResearchTools } from "./tools/index.ts";
+import { createResearchTools } from "./tools/index.ts";
 
 const config = loadConfig();
 const app = Fastify({ logger: true });
@@ -25,7 +25,6 @@ registerRoutes(app, {
     tools: createResearchTools(config.searxngUrl, config.bwproxyUrl),
     logger: app.log,
   }),
-  liveTools: createLiveTools(),
   llmSummarizer: withFallback(
     createLlmSummarizer(summaryChat),
     plainSummarizer,

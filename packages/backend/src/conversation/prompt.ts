@@ -2,7 +2,6 @@ import type { ClientLocation } from "@nuage-home/shared";
 import type { AppAgent } from "../agents/types.ts";
 import { TIME_ZONE } from "../constants.ts";
 import type { FunctionDeclaration } from "../live/port.ts";
-import type { ToolRegistry } from "../tools/index.ts";
 import { formatLocation } from "./location.ts";
 import { PIGGYBACK_TAG, SPEAK_TAG } from "./notification-queue.ts";
 
@@ -10,12 +9,11 @@ export { formatLocation } from "./location.ts";
 
 /**
  * Live（会話層）に渡す指示とツール宣言。
- * 専門エージェントは `<name>_ask`（即 ack してタスク化）、組み込みツールはその場で実行して結果を返す。
+ * 時間のかかる作業は `add_task`（即 ack してタスク化）で受け付け、タスク状態の確認・取消を提供する。
  */
 
 export function buildSystemInstruction(
   apps: AppAgent[],
-  tools: ToolRegistry,
   now: Date = new Date(),
   location?: ClientLocation | string,
 ): string {
@@ -31,10 +29,7 @@ export function buildSystemInstruction(
     "深夜や早朝（23時〜7時）は、より短く静かなトーンで応答する。",
     "最新の情報を扱う際は、現在の年（2026年）を前提とする。",
     ...(location ? [formatLocation(location)] : []),
-    ...(tools.list().length > 0
-      ? ["天気など、すぐ調べられることはその場で答えるツールを使い、結果を短く伝える。"]
-      : []),
-    "Web 検索や詳しい調査、アプリの操作や状況確認などの作業は、自分で行わず必ず対応するアプリの *_ask ツールに依頼する。ツールはすぐに受付結果を返すので、短く相槌を返して会話を続ける。結果は後で通知として届く。",
+    "Web 検索や詳しい調査、アプリの操作や状況確認などの作業は、自分で行わず必ず add_task ツールに依頼する。ツールはすぐに受付結果を返すので、短く相槌を返して会話を続ける。結果は後で通知として届く。",
     "利用できるアプリ:",
     ...apps.map((a) => `- ${a.name}: ${a.description}`),
     `「${SPEAK_TAG}」で始まる入力はシステムからの通知で、ユーザーの発言ではない。内容を自然な言葉で短く伝える。`,
@@ -44,11 +39,12 @@ export function buildSystemInstruction(
   ].join("\n");
 }
 
-export function buildTools(apps: AppAgent[], tools: ToolRegistry): FunctionDeclaration[] {
+export function buildTools(apps: AppAgent[]): FunctionDeclaration[] {
+  const appNames = apps.map((a) => a.name);
   return [
-    ...apps.map((a) => ({
-      name: `${a.name}_ask`,
-      description: `${a.description}。時間のかかる仕事を依頼する。結果は後で通知として届く。`,
+    {
+      name: "add_task",
+      description: "利用できるアプリに時間のかかる作業や調査を依頼する。結果は後で通知として届く。",
       parameters: {
         type: "object",
         properties: {
@@ -56,13 +52,19 @@ export function buildTools(apps: AppAgent[], tools: ToolRegistry): FunctionDecla
             type: "string",
             description: "依頼内容（ユーザーの言葉を具体的にしたもの）",
           },
+          ...(appNames.length > 0
+            ? {
+                app: {
+                  type: "string",
+                  description: `依頼先のアプリ名（${apps.map((a) => `${a.name}: ${a.description}`).join("、")}）`,
+                  ...(appNames.length > 1 ? { enum: appNames } : {}),
+                },
+              }
+            : {}),
         },
         required: ["instruction"],
       },
-    })),
-    ...tools
-      .list()
-      .map((t) => ({ name: t.name, description: t.description, parameters: { ...t.parameters } })),
+    },
     {
       name: "task_status",
       description: "頼んだ作業の進み具合と結果を確認する",

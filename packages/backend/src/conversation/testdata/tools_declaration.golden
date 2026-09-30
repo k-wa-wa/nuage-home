@@ -1,49 +1,25 @@
 [
   {
-    "name": "research_ask",
-    "description": "Web 検索を使った詳しい調査・分析・比較。時間のかかる仕事を依頼する。結果は後で通知として届く。",
+    "name": "add_task",
+    "description": "利用できるアプリに時間のかかる作業や調査を依頼する。結果は後で通知として届く。",
     "parameters": {
       "type": "object",
       "properties": {
         "instruction": {
           "type": "string",
           "description": "依頼内容（ユーザーの言葉を具体的にしたもの）"
+        },
+        "app": {
+          "type": "string",
+          "description": "依頼先のアプリ名（research: Web 検索を使った詳しい調査・分析・比較、autopilot: 開発タスクの自律実行・PR の作成や進捗確認）",
+          "enum": [
+            "research",
+            "autopilot"
+          ]
         }
       },
       "required": [
         "instruction"
-      ]
-    }
-  },
-  {
-    "name": "autopilot_ask",
-    "description": "開発タスクの自律実行・PR の作成や進捗確認。時間のかかる仕事を依頼する。結果は後で通知として届く。",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "instruction": {
-          "type": "string",
-          "description": "依頼内容（ユーザーの言葉を具体的にしたもの）"
-        }
-      },
-      "required": [
-        "instruction"
-      ]
-    }
-  },
-  {
-    "name": "web_search",
-    "description": "Web 上の最新情報・ニュース・話題を検索する",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "検索キーワード"
-        }
-      },
-      "required": [
-        "query"
       ]
     }
   },

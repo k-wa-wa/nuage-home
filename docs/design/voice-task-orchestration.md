@@ -119,11 +119,9 @@ interface Task {
 
 ### 5.2 ライフサイクル
 
-1. Live が `<app>_ask` / `run_agent` を呼ぶ。
-2. backend が Task を `accepted` で登録し、**即座に** toolResponse `{status: "accepted", task_id}` を返す。これにより Live が相槌を発話する。
+1. Live が `add_task` を呼ぶ。
+2. backend が Task を `accepted` で登録し、**即座に** toolResponse `{status: "accepted", message: "受け付けた。結果は終わりしだい伝える。"}` を返す。これにより Live が相槌を発話する。
 3. 実行を開始して `running` にする。
-   - `app_agent`: frontend へ `client_tool_call` を送り、埋め込みアプリ経由で実行する（人の操作と同じ経路）。
-   - `run_agent`: backend 内で実行する。
 4. 完了したら結果を要約し（6.4）、`succeeded` / `failed` として通知を生成する。
 
 ### 5.3 保持範囲
@@ -135,8 +133,9 @@ interface Task {
 
 | ツール | 用途 |
 | :-- | :-- |
+| `add_task` | 時間のかかる作業や調査を依頼してタスクを開始する。結果は後で通知として届く |
 | `task_status` | 「さっきのどうなった？」への回答用。進行中・直近完了タスクの一覧（要約のみ）を返す |
-| `cancel_task` | 「さっきのやめて」。`task_id` 省略時は直近のタスクを対象とする |
+| `cancel_task` | 「さっきのやめて」。対象省略時は直近のタスクを対象とする |
 
 ---
 
@@ -275,7 +274,7 @@ interface Notification {
 
 | 経路 | Live | LLM（要約） | 専門エージェント | 即答ツール |
 | :-- | :-- | :-- | :-- | :-- |
-| `/ws/live` | Gemini Live（音声） | LiteLLM の要約用モデル（15 秒で簡易要約に切り替え） | 調査エージェント（`research_ask`） | 天気・Wikipedia・Web 検索 |
+| `/ws/live` | Gemini Live（音声） | LiteLLM の要約用モデル（15 秒で簡易要約に切り替え） | 調査エージェント（`add_task`） | なし |
 | `/ws/sandbox?live=&llm=&delay=` | モック / Gemini Live（テキスト） | モック / LiteLLM | モック autopilot（固定） | なし |
 
 backend の構成（`packages/backend/src/`）:
@@ -284,11 +283,11 @@ backend の構成（`packages/backend/src/`）:
 | :-- | :-- |
 | `main.ts` / `config.ts` / `constants.ts` | 起動と依存の組み立て / 環境変数（必須、既定値なし） / 調整値の正本 |
 | `api/` | WebSocket と Orchestrator の中継、ルート（`/ws/live`・`/ws/sandbox`） |
-| `conversation/` | Floor（`floor.ts`）、通知キュー（`notification-queue.ts`）、接続を跨ぐ共有状態（`hub.ts`）、統制本体（`orchestrator.ts`）、Live への指示とツール宣言（`prompt.ts`） |
+| `conversation/` | Floor（`floor.ts`）、通知キュー（`notification-queue.ts`）、接続を跨ぐ共有状態（`hub.ts`）、統制本体（`orchestrator.ts`）、Live への指示とタスク系ツール宣言（`prompt.ts`） |
 | `tasks/` | タスク管理（`task-manager.ts`）、要約（`summarizer.ts`） |
 | `live/` | Live の接続口（`port.ts`）、Gemini 実装（`gemini.ts`）、モック（`mock.ts`） |
 | `agents/` | 専門エージェント。調査（`research.ts`）、モック autopilot（`mock.ts`） |
-| `tools/` | ツールとその登録簿。会話層用（天気・Wikipedia・Web 検索）と調査エージェント用（左記＋ページ取得）を分ける。Web 検索・ページ取得は bare-web-proxy 経由（`bwproxy.ts`） |
+| `tools/` | 調査エージェント用ツール（SearXNG 検索・ページ取得） |
 | `llm/` | LiteLLM クライアント |
 
 frontend は、音声モード（`main.ts`・`voice/`）とサンドボックス（`sandbox/`）が、タスク・通知の一覧（`ui/board.ts`）と見た目（`ui/theme.css`）を共用する。

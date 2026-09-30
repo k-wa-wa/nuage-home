@@ -1,6 +1,6 @@
 /**
  * 裏で仕事を引き受ける専門エージェント（調査エージェント、将来の autopilot chat など）。
- * 会話層からは `<name>_ask` ツールとして見え、呼ばれるとタスクとして裏で実行される。
+ * 会話層からは `add_task` ツールから依頼され、タスクとして裏で実行される。
  */
 export interface AppAgent {
   name: string;

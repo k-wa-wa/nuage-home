@@ -120,7 +120,7 @@ describe("runResearch", () => {
 });
 
 describe("createResearchAgent", () => {
-  it("research_ask として呼ばれる専門エージェントを作る", async () => {
+  it("調査専門エージェントを作る", async () => {
     const { deps } = setup([{ content: "調査レポート" }]);
     const agent = createResearchAgent(deps);
     expect(agent.name).toBe("research");

@@ -9,7 +9,6 @@ import { MockLivePort } from "../live/mock.ts";
 import type { LivePort } from "../live/port.ts";
 import type { Summarizer } from "../tasks/summarizer.ts";
 import { plainSummarizer } from "../tasks/summarizer.ts";
-import { ToolRegistry } from "../tools/index.ts";
 import { attachConversation } from "./conversation-socket.ts";
 
 export interface RouteDeps {
@@ -17,9 +16,7 @@ export interface RouteDeps {
   /** タスクと通知。音声モードとサンドボックスで分ける */
   voiceHub: OrchestrationHub;
   sandboxHub: OrchestrationHub;
-  /** 本物の部品。liveTools は会話層がその場で使うツール */
   researchAgent: AppAgent;
-  liveTools: ToolRegistry;
   llmSummarizer: Summarizer;
 }
 
@@ -29,7 +26,7 @@ const SANDBOX_TASK_DELAYS_MS = [3000, 8000, 15_000, 30_000];
 export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
   app.get("/", async () => ({
     status: "ok",
-    tools: deps.liveTools.list().map((t) => t.name),
+    tools: ["add_task", "task_status", "cancel_task"],
     apps: [deps.researchAgent.name],
   }));
 
@@ -42,7 +39,6 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
         live: new GeminiLivePort(deps.config.geminiLive),
         hub: deps.voiceHub,
         apps: [deps.researchAgent],
-        tools: deps.liveTools,
         summarize: deps.llmSummarizer,
       },
       (err) => app.log.error({ err }, "failed to start voice conversation"),
@@ -77,7 +73,6 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
         live,
         hub: deps.sandboxHub,
         apps: [createMockAutopilot(delay)],
-        tools: new ToolRegistry(),
         summarize: modes.llm === "real" ? deps.llmSummarizer : plainSummarizer,
       },
       (err) => app.log.error({ err }, "failed to start sandbox conversation"),

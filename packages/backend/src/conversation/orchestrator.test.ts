@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { AppAgent } from "../agents/types.ts";
 import { TUNING } from "../constants.ts";
 import type { LiveEvent, LivePort, LiveSetup, LiveToolResponse, UserTurn } from "../live/port.ts";
-import { ToolRegistry } from "../tools/index.ts";
 import { OrchestrationHub } from "./hub.ts";
 import { Orchestrator } from "./orchestrator.ts";
 
@@ -52,7 +51,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function setup(tools = new ToolRegistry()) {
+async function setup() {
   let now = 0;
   const live = new FakeLive();
   const job = deferred();
@@ -67,7 +66,6 @@ async function setup(tools = new ToolRegistry()) {
     live,
     hub,
     apps: [autopilot],
-    tools,
     summarize: async (detail) => `要約: ${detail}`,
     send: (m) => out.push(m),
     manualTick: true,
@@ -103,9 +101,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot で止まってる PR 調べて");
     live.emit({
       type: "tool_call",
-      calls: [
-        { id: "c1", name: "autopilot_ask", args: { instruction: "止まっている PR の原因調査" } },
-      ],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "止まっている PR の原因調査" } }],
     });
     await flush();
     expect(live.sent.at(-1)).toEqual({
@@ -113,7 +109,7 @@ describe("Orchestrator", () => {
       responses: [
         {
           id: "c1",
-          name: "autopilot_ask",
+          name: "add_task",
           response: { status: "accepted", message: "受け付けた。結果は終わりしだい伝える。" },
         },
       ],
@@ -133,7 +129,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot で止まってる PR 調べて");
     live.emit({
       type: "tool_call",
-      calls: [{ id: "c1", name: "autopilot_ask", args: { instruction: "調査" } }],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "調査" } }],
     });
     await flush();
     live.emit({ type: "turn_complete" });
@@ -162,7 +158,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot で止まってる PR 調べて");
     live.emit({
       type: "tool_call",
-      calls: [{ id: "c1", name: "autopilot_ask", args: { instruction: "調査" } }],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "調査" } }],
     });
     await flush();
     live.emit({ type: "turn_complete" });
@@ -206,7 +202,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot 調べて");
     live.emit({
       type: "tool_call",
-      calls: [{ id: "c1", name: "autopilot_ask", args: { instruction: "PR の調査" } }],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "PR の調査" } }],
     });
     await flush();
     live.emit({ type: "tool_call", calls: [{ id: "c2", name: "cancel_task", args: {} }] });
@@ -226,7 +222,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot 調べて");
     live.emit({
       type: "tool_call",
-      calls: [{ id: "c1", name: "autopilot_ask", args: { instruction: "PR の調査" } }],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "PR の調査" } }],
     });
     await flush();
     hub.notify({ priority: "low", summary: "明日は雨" });
@@ -247,7 +243,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot 調べて");
     live.emit({
       type: "tool_call",
-      calls: [{ id: "c1", name: "autopilot_ask", args: { instruction: "PR の調査" } }],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "PR の調査" } }],
     });
     await flush();
     expect(out.filter((m) => m.type === "task_update").at(-1)).toMatchObject({
@@ -260,7 +256,7 @@ describe("Orchestrator", () => {
     userTurn("autopilot 調べて");
     live.emit({
       type: "tool_call",
-      calls: [{ id: "c1", name: "autopilot_ask", args: { instruction: "PR の調査" } }],
+      calls: [{ id: "c1", name: "add_task", args: { instruction: "PR の調査" } }],
     });
     await flush();
     live.emit({ type: "tool_call", calls: [{ id: "c2", name: "task_status", args: {} }] });
@@ -274,17 +270,10 @@ describe("Orchestrator", () => {
     expect(JSON.stringify(last)).not.toContain("t-1");
   });
 
-  it("アプリ・即答ツール・タスク系ツールを Live に渡す", async () => {
-    const webSearch = {
-      name: "web_search",
-      description: "Web 検索",
-      parameters: { type: "object" as const, properties: {} },
-      execute: async () => "検索結果",
-    };
-    const { live } = await setup(new ToolRegistry([webSearch]));
+  it("タスク系ツール（add_task, task_status, cancel_task）を Live に渡す", async () => {
+    const { live } = await setup();
     expect(live.setup?.tools.map((t) => t.name)).toEqual([
-      "autopilot_ask",
-      "web_search",
+      "add_task",
       "task_status",
       "cancel_task",
     ]);
@@ -322,36 +311,6 @@ describe("Orchestrator", () => {
     orch.handleClient({ type: "user_audio", data: chunk });
     orch.handleClient({ type: "user_audio_end" });
     expect(live.sent.at(-1)).toEqual({ kind: "user_audio", bytes: TUNING.minSpeechBytes });
-  });
-
-  it("即答ツールは結果を待って返し、その間に通知を割り込ませない", async () => {
-    let finish!: (v: string) => void;
-    const webSearch = {
-      name: "web_search",
-      description: "Web 検索",
-      parameters: { type: "object" as const, properties: {} },
-      execute: () => new Promise<string>((r) => (finish = r)),
-    };
-    const { live, orch, at, userTurn } = await setup(new ToolRegistry([webSearch]));
-    userTurn("最新ニュースは？");
-    live.emit({
-      type: "tool_call",
-      calls: [{ id: "c1", name: "web_search", args: { query: "最新ニュース" } }],
-    });
-    // 無言のツール呼び出しターンが終わっても、ツール結果の読み上げを待つ
-    live.emit({ type: "turn_complete" });
-    // urgent の猶予は過ぎているが、Live の応答待ちのタイムアウト（20 秒）より前
-    at(10_000);
-    orch.handleClient({ type: "debug_notify", priority: "urgent", summary: "サーバーが落ちた" });
-    expect(live.sent.filter((s) => s.kind === "prompt")).toEqual([]);
-    finish("最新ニュース: 晴天が続いています");
-    await flush();
-    expect(live.sent.at(-1)).toEqual({
-      kind: "tool_responses",
-      responses: [
-        { id: "c1", name: "web_search", response: { result: "最新ニュース: 晴天が続いています" } },
-      ],
-    });
   });
 
   it("Live の音声・書き起こし・ユーザー発話の書き起こし・遮りを画面へ中継する", async () => {

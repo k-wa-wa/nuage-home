@@ -14,6 +14,7 @@ import type { LiveEvent, LivePort, LiveSetup, LiveToolResponse, UserTurn } from 
 
 interface ToolRoute {
   tool: string;
+  app?: string;
   pattern: RegExp;
 }
 
@@ -27,14 +28,28 @@ export class MockLivePort implements LivePort {
   private callSeq = 0;
 
   async start(setup: LiveSetup): Promise<void> {
-    // アプリ名（*_ask）と、よく使われる言い回しでツールを振り分ける
-    this.routes = setup.tools
-      .filter((t) => t.name.endsWith("_ask"))
-      .map((t) => {
-        const app = t.name.replace(/_ask$/, "");
+    const addTask = setup.tools.find((t) => t.name === "add_task");
+    if (addTask) {
+      const appProp = addTask.parameters.properties as Record<string, unknown> | undefined;
+      const appEnum = (appProp?.app as { enum?: string[] } | undefined)?.enum ?? ["autopilot"];
+      this.routes = appEnum.map((app) => {
         const extra = app === "autopilot" ? "|PR|プルリク|Issue|イシュー|開発" : "";
-        return { tool: t.name, pattern: new RegExp(`${app}${extra}`, "i") };
+        return { tool: "add_task", app, pattern: new RegExp(`${app}${extra}`, "i") };
       });
+      this.routes.push({
+        tool: "add_task",
+        app: appEnum[0],
+        pattern: /調べ|確認|見て|チェック|やって|進めて|教えて/,
+      });
+    } else {
+      this.routes = setup.tools
+        .filter((t) => t.name.endsWith("_ask"))
+        .map((t) => {
+          const app = t.name.replace(/_ask$/, "");
+          const extra = app === "autopilot" ? "|PR|プルリク|Issue|イシュー|開発" : "";
+          return { tool: t.name, pattern: new RegExp(`${app}${extra}`, "i") };
+        });
+    }
   }
 
   onEvent(listener: (e: LiveEvent) => void): void {
@@ -92,14 +107,22 @@ export class MockLivePort implements LivePort {
     if (/どうなった|進み具合|進捗|終わった[？?]/.test(text))
       return { name: "task_status", args: {} };
     const route = this.routes.find((r) => r.pattern.test(text));
-    if (route && REQUEST_VERB.test(text)) return { name: route.tool, args: { instruction: text } };
+    if (route && REQUEST_VERB.test(text)) {
+      if (route.tool === "add_task") {
+        return {
+          name: "add_task",
+          args: { instruction: text, ...(route.app ? { app: route.app } : {}) },
+        };
+      }
+      return { name: route.tool, args: { instruction: text } };
+    }
     return null;
   }
 
   private phraseToolResponse(r: LiveToolResponse): string {
     const res = r.response;
-    if (r.name.endsWith("_ask"))
-      return res.status === "accepted" ? "了解、調べておくね。" : "ごめん、うまく頼めなかった。";
+    if (r.name === "add_task" || r.name.endsWith("_ask"))
+      return res.status === "accepted" ? "了解、やっておくね。" : "ごめん、うまく頼めなかった。";
     if (r.name === "cancel_task")
       return res.status === "cancelled"
         ? "わかった、取り消したよ。"

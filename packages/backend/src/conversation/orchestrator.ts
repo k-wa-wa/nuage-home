@@ -8,7 +8,6 @@ import type { AppAgent } from "../agents/types.ts";
 import { TUNING } from "../constants.ts";
 import type { LiveEvent, LivePort, LiveToolCall, UserTurn } from "../live/port.ts";
 import type { Summarizer } from "../tasks/summarizer.ts";
-import type { ToolRegistry } from "../tools/index.ts";
 import { type Floor, type FloorEvent, initialFloor, reduceFloor } from "./floor.ts";
 import type { OrchestrationHub } from "./hub.ts";
 import { formatLocation, reverseGeocode } from "./location.ts";
@@ -25,8 +24,6 @@ export interface OrchestratorOptions {
   hub: OrchestrationHub;
   /** この会話で使う専門エージェント（呼ばれるとタスクとして裏で動く） */
   apps: AppAgent[];
-  /** この会話で使う即答ツール（結果を待ってから Live に返す） */
-  tools: ToolRegistry;
   /** この会話で使う要約 */
   summarize: Summarizer;
   /** 画面（クライアント）への送信 */
@@ -53,7 +50,7 @@ export class Orchestrator {
   }
 
   async start(): Promise<void> {
-    const { live, hub, apps, tools, send } = this.opts;
+    const { live, hub, apps, send } = this.opts;
     live.onEvent((e) => this.handleLive(e));
     this.unsubscribers.push(hub.subscribeTasks((task) => send({ type: "task_update", task })));
     this.unsubscribers.push(
@@ -64,8 +61,8 @@ export class Orchestrator {
     this.unsubscribers.push(hub.subscribeWake(() => this.tick()));
 
     await live.start({
-      systemInstruction: buildSystemInstruction(apps, tools),
-      tools: buildTools(apps, tools),
+      systemInstruction: buildSystemInstruction(apps),
+      tools: buildTools(apps),
     });
 
     // 再接続時に、既存のタスクと通知を画面へ復元する
@@ -214,14 +211,19 @@ export class Orchestrator {
     this.opts.live.sendToolResponses(responses);
   }
 
-  /** 専門エージェントは即座に受付を返してタスク化し、即答ツールは結果を返す */
+  /** タスク操作（受付・状況確認・取消）を行う */
   private async handleToolCall(call: LiveToolCall): Promise<Record<string, unknown>> {
-    const { hub, apps, tools, summarize } = this.opts;
+    const { hub, apps, summarize } = this.opts;
 
-    const app = apps.find((a) => `${a.name}_ask` === call.name);
-    if (app) {
+    if (call.name === "add_task") {
       const instruction = typeof call.args.instruction === "string" ? call.args.instruction : "";
       if (!instruction) return { status: "rejected", message: "依頼内容が空である。" };
+
+      const targetAppName = typeof call.args.app === "string" ? call.args.app : undefined;
+      const app =
+        (targetAppName ? apps.find((a) => a.name === targetAppName) : undefined) ?? apps[0];
+      if (!app) return { status: "rejected", message: "対応できるアプリがない。" };
+
       hub.startTask(
         { app: app.name, instruction, origin: "voice" },
         (signal) => app.ask(instruction, signal),
@@ -229,8 +231,6 @@ export class Orchestrator {
       );
       return { status: "accepted", message: "受け付けた。結果は終わりしだい伝える。" };
     }
-
-    if (tools.has(call.name)) return { result: await tools.execute(call.name, call.args) };
 
     if (call.name === "task_status") {
       const list = hub.tasks.list().slice(0, 5);

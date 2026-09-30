@@ -7,7 +7,7 @@ import type { AppAgent } from "./types.ts";
 
 /**
  * 調査エージェント。Web 検索等のツールを使い、LLM で調査レポートを作る。
- * 会話層からは research_ask として呼ばれ、タスクとして裏で動く。
+ * 会話層からは add_task（app: "research"）として呼ばれ、タスクとして裏で動く。
  */
 
 export interface ResearchDeps {
