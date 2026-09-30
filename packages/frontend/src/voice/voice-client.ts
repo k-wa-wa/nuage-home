@@ -243,7 +243,9 @@ export class VoiceClient {
         this.cb.onNotification(msg.notification);
         return;
       case "error":
-        this.cb.onError(new Error(msg.message));
+        if (this.running) {
+          this.cb.onError(new Error(msg.message));
+        }
         return;
       // 音声モードでは使わない
       case "live_io":

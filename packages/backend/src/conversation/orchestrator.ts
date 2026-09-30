@@ -92,6 +92,8 @@ export class Orchestrator {
       });
       this.liveActive = true;
       this.opts.send({ type: "voice_ready" });
+    } catch (err) {
+      this.opts.send({ type: "error", message: err instanceof Error ? err.message : String(err) });
     } finally {
       this.liveStarting = false;
     }
@@ -236,7 +238,9 @@ export class Orchestrator {
         void this.respondToToolCalls(e.calls);
         return;
       case "error":
-        send({ type: "error", message: e.message });
+        if (this.liveActive) {
+          send({ type: "error", message: e.message });
+        }
         return;
     }
   }

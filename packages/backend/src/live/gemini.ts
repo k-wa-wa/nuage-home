@@ -13,6 +13,7 @@ export class GeminiLivePort implements LivePort {
   private ws: WebSocket | null = null;
   private listener: (e: LiveEvent) => void = () => {};
   private readonly cfg: Config["geminiLive"];
+  private closedIntentionally = false;
 
   constructor(cfg: Config["geminiLive"]) {
     this.cfg = cfg;
@@ -23,6 +24,7 @@ export class GeminiLivePort implements LivePort {
   }
 
   start(setup: LiveSetup): Promise<void> {
+    this.closedIntentionally = false;
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(this.cfg.wsUrl);
       this.ws = ws;
@@ -87,11 +89,13 @@ export class GeminiLivePort implements LivePort {
       });
 
       ws.on("close", (code, reason) => {
+        if (this.closedIntentionally || code === 1000) return;
         const message = `Gemini Live が切断された (${code} ${reason.toString()})`;
         if (!ready) reject(new Error(message));
         else this.emit({ type: "error", message });
       });
       ws.on("error", (err) => {
+        if (this.closedIntentionally) return;
         if (!ready) reject(err);
         else this.emit({ type: "error", message: String(err) });
       });
@@ -123,8 +127,11 @@ export class GeminiLivePort implements LivePort {
   }
 
   close(): void {
-    this.ws?.close();
-    this.ws = null;
+    this.closedIntentionally = true;
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
   }
 
   private send(payload: unknown): void {
