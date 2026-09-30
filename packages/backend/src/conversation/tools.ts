@@ -35,13 +35,14 @@ export function createConversationTools(deps: ConversationToolDeps): Conversatio
   const addTaskTool: ConversationTool = {
     declaration: {
       name: "add_task",
-      description: "利用できるアプリに時間のかかる作業や調査を依頼する。結果は後で通知として届く。",
+      description:
+        "照明やカーテンなどの家電操作、Web検索や詳しい調査、開発タスクの確認など、利用できるアプリに作業を依頼する。結果は後で通知として届く。",
       parameters: {
         type: "object",
         properties: {
           instruction: {
             type: "string",
-            description: "依頼内容（ユーザーの言葉を具体的にしたもの）",
+            description: "依頼内容（ユーザーの言葉や状況から汲み取った具体的な作業内容）",
           },
           ...(appNames.length > 0
             ? {
