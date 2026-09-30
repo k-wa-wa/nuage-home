@@ -1,14 +1,14 @@
 import type { ClientLocation } from "@nuage-home/shared";
-import { TIME_ZONE, TUNING } from "../constants.ts";
-import { formatLocation } from "../conversation/location.ts";
-import type { ChatFn, LlmMessage } from "../llm/client.ts";
+import { TIME_ZONE, TUNING } from "../../constants.ts";
+import { formatLocation } from "../../conversation/location.ts";
+import type { ChatFn, LlmMessage } from "../../llm/client.ts";
 import {
   createFetchPageTool,
   createWebSearchTool,
   type ToolArgs,
   ToolRegistry,
-} from "../tools/index.ts";
-import type { AppAgent } from "./types.ts";
+} from "../../tools/index.ts";
+import type { AppAgent } from "../types.ts";
 
 /**
  * 調査エージェント。Web 検索等のツールを使い、LLM で調査レポートを作る。

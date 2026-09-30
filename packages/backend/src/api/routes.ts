@@ -1,6 +1,6 @@
 import type { ConversationModes } from "@nuage-home/shared";
 import type { FastifyInstance } from "fastify";
-import { createMockAutopilot } from "../agents/mock.ts";
+import { createMockAutopilot, createMockResearch, createMockSmartHome } from "../agents/mock.ts";
 import type { AppAgent } from "../agents/types.ts";
 import type { Config } from "../config.ts";
 import type { OrchestrationHub } from "../conversation/hub.ts";
@@ -68,7 +68,7 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
         modes,
         live,
         hub: deps.sandboxHub,
-        apps: [createMockAutopilot(delay)],
+        apps: [createMockAutopilot(delay), createMockSmartHome(delay), createMockResearch(delay)],
         summarize: modes.llm === "real" ? deps.llmSummarizer : plainSummarizer,
       },
       (err) => app.log.error({ err }, "failed to start sandbox conversation"),

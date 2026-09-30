@@ -1,6 +1,11 @@
 import websocketPlugin from "@fastify/websocket";
 import Fastify from "fastify";
-import { createResearchAgent, createResearchTools } from "./agents/research.ts";
+import { createResearchAgent, createResearchTools } from "./agents/research/index.ts";
+import {
+  createSmartHomeAgent,
+  createSmartHomeTools,
+  SwitchBotClient,
+} from "./agents/smart-home/index.ts";
 import { registerRoutes } from "./api/routes.ts";
 import { loadConfig } from "./config.ts";
 import { TUNING } from "./constants.ts";
@@ -25,6 +30,15 @@ registerRoutes(app, {
       tools: createResearchTools(config.searxngUrl, config.bwproxyUrl),
       logger: app.log,
     }),
+    ...(config.switchbot
+      ? [
+          createSmartHomeAgent({
+            chat,
+            tools: createSmartHomeTools(new SwitchBotClient(config.switchbot)),
+            logger: app.log,
+          }),
+        ]
+      : []),
   ],
   llmSummarizer: withFallback(
     createLlmSummarizer(summaryChat),

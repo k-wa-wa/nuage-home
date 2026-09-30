@@ -18,7 +18,8 @@ interface ToolRoute {
   pattern: RegExp;
 }
 
-const REQUEST_VERB = /調べ|確認|見て|チェック|やって|進めて|教えて|どう(なって|なってる)/;
+const REQUEST_VERB =
+  /調べ|確認|見て|チェック|やって|進めて|教えて|どう(なって|なってる)|消して|消し|つけ|点け|開け|閉め|設定|オン|オフ|on|off/i;
 
 export class MockLivePort implements LivePort {
   private listener: (e: LiveEvent) => void = () => {};
@@ -33,7 +34,15 @@ export class MockLivePort implements LivePort {
       const appProp = addTask.parameters.properties as Record<string, unknown> | undefined;
       const appEnum = (appProp?.app as { enum?: string[] } | undefined)?.enum ?? ["autopilot"];
       this.routes = appEnum.map((app) => {
-        const extra = app === "autopilot" ? "|PR|プルリク|Issue|イシュー|開発" : "";
+        let extra = "";
+        if (app === "autopilot") {
+          extra = "|PR|プルリク|Issue|イシュー|開発";
+        } else if (app === "smart_home") {
+          extra =
+            "|ライト|電気|照明|フロアライト|電球|テープライト|カーテン|部屋|消して|つけて|点けて|開けて|閉めて";
+        } else if (app === "research") {
+          extra = "|調べ|検索|調査|最新|比較|おすすめ|ググ";
+        }
         return { tool: "add_task", app, pattern: new RegExp(`${app}${extra}`, "i") };
       });
       this.routes.push({
@@ -46,7 +55,15 @@ export class MockLivePort implements LivePort {
         .filter((t) => t.name.endsWith("_ask"))
         .map((t) => {
           const app = t.name.replace(/_ask$/, "");
-          const extra = app === "autopilot" ? "|PR|プルリク|Issue|イシュー|開発" : "";
+          let extra = "";
+          if (app === "autopilot") {
+            extra = "|PR|プルリク|Issue|イシュー|開発";
+          } else if (app === "smart_home") {
+            extra =
+              "|ライト|電気|照明|フロアライト|電球|テープライト|カーテン|部屋|消して|つけて|点けて|開けて|閉めて";
+          } else if (app === "research") {
+            extra = "|調べ|検索|調査|最新|比較|おすすめ|ググ";
+          }
           return { tool: t.name, pattern: new RegExp(`${app}${extra}`, "i") };
         });
     }

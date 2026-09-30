@@ -13,6 +13,11 @@ export interface LlmConfig {
   model: string;
 }
 
+export interface SwitchBotConfig {
+  token: string;
+  secret: string;
+}
+
 export interface Config {
   port: number;
   llm: LlmConfig;
@@ -27,6 +32,7 @@ export interface Config {
     /** LiteLLM の Gemini Live パススルー（LITELLM_BASE_URL から導く） */
     wsUrl: string;
   };
+  switchbot?: SwitchBotConfig;
 }
 
 export function loadConfig(): Config {
@@ -40,6 +46,17 @@ export function loadConfig(): Config {
     model: required("LITELLM_MODEL"),
   };
   const geminiLiveBaseUrl = process.env.GEMINI_LIVE_BASE_URL?.trim() || llm.baseUrl;
+
+  const switchbotToken = process.env.SWITCHBOT_TOKEN?.trim();
+  const switchbotSecret = process.env.SWITCHBOT_SECRET?.trim();
+  let switchbot: SwitchBotConfig | undefined;
+  if (switchbotToken || switchbotSecret) {
+    if (!switchbotToken || !switchbotSecret) {
+      throw new Error("SWITCHBOT_TOKEN and SWITCHBOT_SECRET must both be provided");
+    }
+    switchbot = { token: switchbotToken, secret: switchbotSecret };
+  }
+
   return {
     port,
     llm,
@@ -50,6 +67,7 @@ export function loadConfig(): Config {
       model: required("GEMINI_LIVE_MODEL"),
       wsUrl: `${geminiLiveBaseUrl.replace(/^http/, "ws").replace(/\/$/, "")}${GEMINI_LIVE.wsPath}`,
     },
+    switchbot,
   };
 }
 

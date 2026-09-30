@@ -1,15 +1,15 @@
 import { describe, expect, it, test, vi } from "vitest";
-import { TUNING } from "../constants.ts";
-import type { LlmMessage, LlmResponse, ToolCall } from "../llm/client.ts";
-import { goldenIn } from "../testing/golden.ts";
-import { type ToolDefinition, ToolRegistry } from "../tools/index.ts";
+import { TUNING } from "../../constants.ts";
+import type { LlmMessage, LlmResponse, ToolCall } from "../../llm/client.ts";
+import { goldenIn } from "../../testing/golden.ts";
+import { type ToolDefinition, ToolRegistry } from "../../tools/index.ts";
 import {
   buildSystemPrompt,
   createResearchAgent,
   type ResearchDeps,
   ResearchError,
   runResearch,
-} from "./research.ts";
+} from "./agent.ts";
 
 function toolCall(name: string, args: string, id = "call_1"): ToolCall {
   return { id, type: "function", function: { name, arguments: args } };

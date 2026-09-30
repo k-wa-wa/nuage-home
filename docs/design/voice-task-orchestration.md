@@ -286,8 +286,8 @@ backend の構成（`packages/backend/src/`）:
 | `conversation/` | Floor（`floor.ts`）、通知キュー（`notification-queue.ts`）、接続を跨ぐ共有状態（`hub.ts`）、統制本体（`orchestrator.ts`）、Live への指示とタスク系ツール宣言（`prompt.ts`） |
 | `tasks/` | タスク管理（`task-manager.ts`）、要約（`summarizer.ts`） |
 | `live/` | Live の接続口（`port.ts`）、Gemini 実装（`gemini.ts`）、モック（`mock.ts`） |
-| `agents/` | 専門エージェント。調査（`research.ts`）、モック autopilot（`mock.ts`） |
-| `tools/` | 調査エージェント用ツール（SearXNG 検索・ページ取得） |
+| `agents/` | 専門エージェント群（`research/`、`smart-home/`、`autopilot/`）。各ディレクトリに agent / mock を配置 |
+| `tools/` | 共通・調査エージェント用ツール（SearXNG 検索・ページ取得） |
 | `llm/` | LiteLLM クライアント |
 
 frontend は、音声モード（`main.ts`・`voice/`）とサンドボックス（`sandbox/`）が、タスク・通知の一覧（`ui/board.ts`）と見た目（`ui/theme.css`）を共用する。
