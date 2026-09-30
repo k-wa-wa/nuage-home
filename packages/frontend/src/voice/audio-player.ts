@@ -1,4 +1,10 @@
 /**
+ * 音声のデフォルト再生速度倍率。
+ * 1.15倍速（+15%）はピッチ変化の違和感を抑えつつ、軽快でテンポの良い発話を実現する。
+ */
+export const DEFAULT_PLAYBACK_RATE = 1.15;
+
+/**
  * Gemini Live から届く 24kHz, 16bit, mono PCM (base64) 音声をシームレスに連続再生するプレイヤー
  */
 export class AudioPlayer {
@@ -7,9 +13,14 @@ export class AudioPlayer {
   private activeSources: AudioBufferSourceNode[] = [];
   private isPlaying = false;
   private onPlayingStateChange?: (playing: boolean) => void;
+  readonly playbackRate: number;
 
-  constructor(onPlayingStateChange?: (playing: boolean) => void) {
+  constructor(
+    onPlayingStateChange?: (playing: boolean) => void,
+    playbackRate: number = DEFAULT_PLAYBACK_RATE,
+  ) {
     this.onPlayingStateChange = onPlayingStateChange;
+    this.playbackRate = playbackRate;
   }
 
   get playing(): boolean {
@@ -43,7 +54,7 @@ export class AudioPlayer {
   queueAudioChunk(base64Pcm: string): void {
     const ctx = this.initContext();
 
-    const binaryString = window.atob(base64Pcm);
+    const binaryString = atob(base64Pcm);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
@@ -63,6 +74,7 @@ export class AudioPlayer {
 
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
+    source.playbackRate.value = this.playbackRate;
     source.connect(ctx.destination);
 
     const currentTime = ctx.currentTime;
@@ -79,7 +91,7 @@ export class AudioPlayer {
       this.onPlayingStateChange?.(true);
     }
 
-    const chunkDuration = audioBuffer.duration;
+    const chunkDuration = audioBuffer.duration / this.playbackRate;
     this.nextPlayTime += chunkDuration;
 
     source.onended = () => {
