@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval:diff": "tsx src/eval/cli.ts",
+    "eval:mock": "tsx src/eval/cli.ts --mode=mock"
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.2",

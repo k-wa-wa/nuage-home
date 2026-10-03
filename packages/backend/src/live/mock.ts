@@ -1,5 +1,6 @@
 import { TUNING } from "../constants.ts";
 import { PIGGYBACK_TAG, SPEAK_TAG } from "../conversation/notification-queue.ts";
+import { findScenarioForLive } from "../eval/mock-adapter.ts";
 import type { LiveEvent, LivePort, LiveSetup, LiveToolResponse, UserTurn } from "./port.ts";
 
 /**
@@ -123,6 +124,16 @@ export class MockLivePort implements LivePort {
     if (/やめて|キャンセル|取り消/.test(text)) return { name: "cancel_task", args: {} };
     if (/どうなった|進み具合|進捗|終わった[？?]/.test(text))
       return { name: "task_status", args: {} };
+
+    // 共通シナリオに合致するものがあれば優先ディスパッチ
+    const scenario = findScenarioForLive(text);
+    if (scenario) {
+      return {
+        name: scenario.expected.tool,
+        args: { instruction: text, app: scenario.expected.app },
+      };
+    }
+
     const route = this.routes.find((r) => r.pattern.test(text));
     if (route && REQUEST_VERB.test(text)) {
       if (route.tool === "add_task") {
@@ -138,8 +149,12 @@ export class MockLivePort implements LivePort {
 
   private phraseToolResponse(r: LiveToolResponse): string {
     const res = r.response;
-    if (r.name === "add_task" || r.name.endsWith("_ask"))
-      return res.status === "accepted" ? "了解、やっておくね。" : "ごめん、うまく頼めなかった。";
+    if (r.name === "add_task" || r.name.endsWith("_ask")) {
+      if (res.status !== "accepted") return "ごめん、うまく頼めなかった。";
+      const inst = typeof res.instruction === "string" ? res.instruction : "";
+      const scenario = findScenarioForLive(inst);
+      return scenario?.expected.ackSpeech ?? "了解、やっておくね。";
+    }
     if (r.name === "cancel_task")
       return res.status === "cancelled"
         ? "わかった、取り消したよ。"

@@ -13,8 +13,9 @@
     "lint": "biome check --error-on-warnings packages",
     "lint:fix": "biome check --write packages",
     "format": "biome format --write packages",
-    "check": "npm run typecheck && npm run lint && npm test"
-
+    "check": "npm run typecheck && npm run lint && npm test",
+    "eval:diff": "npm run eval:diff -w @nuage-home/backend --",
+    "eval:mock": "npm run eval:mock -w @nuage-home/backend --"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",

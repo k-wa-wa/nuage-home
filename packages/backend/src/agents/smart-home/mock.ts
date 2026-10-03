@@ -1,4 +1,5 @@
 import type { TaskOutput } from "@nuage-home/shared";
+import { matchScenarioOutput } from "../../eval/mock-adapter.ts";
 import type { AppAgent } from "../types.ts";
 
 /**
@@ -32,16 +33,7 @@ function mockSmartHomeResult(instruction: string): TaskOutput {
   if (/失敗|エラー/.test(instruction)) {
     throw new Error("SwitchBot デバイスが応答しなかった。");
   }
-  if (/カーテン/.test(instruction)) {
-    return { speech: "カーテンの開閉操作を実行したよ。スムーズに動作完了したよ。" };
-  }
-  if (/フロアライト|テープライト|ライト|電気|照明/.test(instruction)) {
-    const action = /消|オフ|off/i.test(instruction) ? "消灯" : "点灯";
-    return { speech: `フロアライトおよびテープライトを${action}したよ。` };
-  }
-  if (/電球|グループ|シーン/.test(instruction)) {
-    const action = /消|オフ|off/i.test(instruction) ? "一括消灯" : "一括点灯";
-    return { speech: `スマート電球グループのシーンを実行して、${action}したよ。` };
-  }
-  return { speech: "指定された家電デバイスの操作コマンドを実行したよ。" };
+  return matchScenarioOutput("smart_home", instruction, () => ({
+    speech: "指定された家電デバイスの操作コマンドを実行したよ。",
+  }));
 }

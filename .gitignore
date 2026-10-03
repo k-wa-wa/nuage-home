@@ -30,3 +30,8 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Eval reports
+eval-report.md
+packages/backend/eval-report.md
+
