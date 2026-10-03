@@ -129,3 +129,97 @@ details pre {
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* 浮動モーダル（Tasks / Notification / Report / IO） */
+@keyframes modal-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.floating-modal {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: rgba(21, 25, 32, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+  pointer-events: auto;
+  transform-origin: center top;
+  animation: modal-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-modal {
+    animation: none;
+  }
+}
+
+.floating-modal.is-active {
+  border-color: rgba(110, 168, 254, 0.4);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(110, 168, 254, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.modal-header:active,
+.modal-header.dragging {
+  cursor: grabbing;
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.drag-handle {
+  color: var(--muted);
+  font-size: 13px;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.modal-body {
+  padding: 12px 14px;
+  max-height: min(420px, 45vh);
+  overflow-y: auto;
+}

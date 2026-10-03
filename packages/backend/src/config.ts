@@ -21,8 +21,6 @@ export interface SwitchBotConfig {
 export interface Config {
   port: number;
   llm: LlmConfig;
-  /** 結果の要約に使うモデル（LiteLLM のモデル名）。応答の速いものを選ぶ */
-  summaryModel: string;
   /** bare-web-proxy のベース URL（ページ取得） */
   bwproxyUrl: string;
   /** SearXNG のベース URL（Web 検索） */
@@ -60,7 +58,6 @@ export function loadConfig(): Config {
   return {
     port,
     llm,
-    summaryModel: required("LITELLM_SUMMARY_MODEL"),
     bwproxyUrl: required("BWPROXY_URL").replace(/\/$/, ""),
     searxngUrl: required("SEARXNG_URL").replace(/\/$/, ""),
     geminiLive: {

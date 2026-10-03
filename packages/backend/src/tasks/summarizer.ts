@@ -1,7 +1,7 @@
 import type { Task } from "@nuage-home/shared";
 import type { ChatFn } from "../llm/client.ts";
 
-/** 結果全文を、音声で伝える 1〜2 文に要約する */
+/** 結果全文を、音声で伝える 1〜2 文に要約する関数の型 */
 export type Summarizer = (detail: string, task: Task) => Promise<string>;
 
 /**
@@ -54,7 +54,7 @@ export function cleanMarkdownForSpeech(detail: string): string {
   );
 }
 
-/** LLM を使わない要約。Markdown の記号・番号・ID を落とし、見出しを除いた先頭の 2 文だけを残す */
+/** LLM を使わない要約。Markdown の記号・番号・ID を落とし、見出しを除いた先頭の 2 文だけを残す（フォールバック用） */
 export const plainSummarizer: Summarizer = async (detail) => {
   return cleanMarkdownForSpeech(detail)
     .split(/(?<=。)/)

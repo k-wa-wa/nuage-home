@@ -95,6 +95,7 @@ export class OrbRenderer {
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       throw new Error(`program link error: ${gl.getProgramInfoLog(program)}`);
     }
+    // biome-ignore lint/correctness/useHookAtTopLevel: WebGL API method
     gl.useProgram(program);
 
     // Fullscreen triangle: avoids a second triangle / index buffer for a quad.

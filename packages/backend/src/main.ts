@@ -18,7 +18,6 @@ const app = Fastify({ logger: true });
 await app.register(websocketPlugin);
 
 const chat = createLiteLlmChat(config.llm);
-const summaryChat = createLiteLlmChat({ ...config.llm, model: config.summaryModel });
 
 registerRoutes(app, {
   config,
@@ -40,11 +39,7 @@ registerRoutes(app, {
         ]
       : []),
   ],
-  llmSummarizer: withFallback(
-    createLlmSummarizer(summaryChat),
-    plainSummarizer,
-    TUNING.summaryTimeoutMs,
-  ),
+  llmSummarizer: withFallback(createLlmSummarizer(chat), plainSummarizer, TUNING.summaryTimeoutMs),
 });
 
 await app.listen({ port: config.port, host: "0.0.0.0" });

@@ -8,28 +8,49 @@ export interface InitialPosition {
 let highestZIndex = 10;
 
 /**
+ * モーダル要素を最前面へ持ってくる。
+ */
+export function bringToFront(modalEl: HTMLElement): void {
+  highestZIndex += 1;
+  modalEl.style.zIndex = String(highestZIndex);
+  for (const el of document.querySelectorAll(".floating-modal")) {
+    el.classList.remove("is-active");
+  }
+  modalEl.classList.add("is-active");
+}
+
+/**
+ * テスト等で z-index の基準値をリセットする。
+ */
+export function resetHighestZIndex(val = 10): void {
+  highestZIndex = val;
+}
+
+/**
  * モーダル要素をヘッダーのドラッグで移動可能にし、クリック時に最前面へ出す。
+ * アンマウント時にリスナーを解除するクリーンアップ関数を返す。
  */
 export function setupDraggable(
   modalEl: HTMLElement,
   headerEl: HTMLElement,
   initialPos: InitialPosition,
-): void {
-  if (initialPos.top !== undefined) modalEl.style.top = `${initialPos.top}px`;
-  if (initialPos.bottom !== undefined) modalEl.style.bottom = `${initialPos.bottom}px`;
-  if (initialPos.left !== undefined) modalEl.style.left = `${initialPos.left}px`;
-  if (initialPos.right !== undefined) modalEl.style.right = `${initialPos.right}px`;
+): () => void {
+  // 初回のみ初期位置を適用する（すでに移動されている場合は維持）
+  if (modalEl.dataset.draggableInitialized !== "true") {
+    modalEl.dataset.draggableInitialized = "true";
+    if (initialPos.top !== undefined) modalEl.style.top = `${initialPos.top}px`;
+    if (initialPos.bottom !== undefined) modalEl.style.bottom = `${initialPos.bottom}px`;
+    if (initialPos.left !== undefined) modalEl.style.left = `${initialPos.left}px`;
+    if (initialPos.right !== undefined) modalEl.style.right = `${initialPos.right}px`;
+  }
 
-  const bringToFront = () => {
-    highestZIndex += 1;
-    modalEl.style.zIndex = String(highestZIndex);
-    for (const el of document.querySelectorAll(".floating-modal")) {
-      el.classList.remove("is-active");
-    }
-    modalEl.classList.add("is-active");
+  // 表示時に自動で最前面にする
+  bringToFront(modalEl);
+
+  const onPointerDown = () => {
+    bringToFront(modalEl);
   };
-
-  modalEl.addEventListener("pointerdown", bringToFront);
+  modalEl.addEventListener("pointerdown", onPointerDown);
 
   let isDragging = false;
   let startX = 0;
@@ -37,21 +58,21 @@ export function setupDraggable(
   let initialLeft = 0;
   let initialTop = 0;
 
-  headerEl.addEventListener("pointerdown", (e: PointerEvent) => {
+  const onHeaderPointerDown = (e: PointerEvent) => {
     if ((e.target as HTMLElement).closest("button, a, input, select, .chip")) return;
     isDragging = true;
     headerEl.setPointerCapture(e.pointerId);
     headerEl.classList.add("dragging");
-    bringToFront();
+    bringToFront(modalEl);
 
     const rect = modalEl.getBoundingClientRect();
     initialLeft = rect.left;
     initialTop = rect.top;
     startX = e.clientX;
     startY = e.clientY;
-  });
+  };
 
-  headerEl.addEventListener("pointermove", (e: PointerEvent) => {
+  const onHeaderPointerMove = (e: PointerEvent) => {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
@@ -68,7 +89,7 @@ export function setupDraggable(
     modalEl.style.top = `${nextTop}px`;
     modalEl.style.right = "auto";
     modalEl.style.bottom = "auto";
-  });
+  };
 
   const stopDragging = (e: PointerEvent) => {
     if (!isDragging) return;
@@ -81,6 +102,16 @@ export function setupDraggable(
     }
   };
 
+  headerEl.addEventListener("pointerdown", onHeaderPointerDown);
+  headerEl.addEventListener("pointermove", onHeaderPointerMove);
   headerEl.addEventListener("pointerup", stopDragging);
   headerEl.addEventListener("pointercancel", stopDragging);
+
+  return () => {
+    modalEl.removeEventListener("pointerdown", onPointerDown);
+    headerEl.removeEventListener("pointerdown", onHeaderPointerDown);
+    headerEl.removeEventListener("pointermove", onHeaderPointerMove);
+    headerEl.removeEventListener("pointerup", stopDragging);
+    headerEl.removeEventListener("pointercancel", stopDragging);
+  };
 }

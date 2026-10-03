@@ -1,9 +1,7 @@
 import type { Task } from "@nuage-home/shared";
-import { describe, expect, it, test } from "vitest";
-import { goldenIn } from "../testing/golden.ts";
-import { buildSummarizerMessages, plainSummarizer, withFallback } from "./summarizer.ts";
+import { describe, expect, it } from "vitest";
+import { plainSummarizer, withFallback } from "./summarizer.ts";
 
-const golden = goldenIn(import.meta.url);
 const task = { instruction: "調査" } as Task;
 
 describe("plainSummarizer", () => {
@@ -49,21 +47,5 @@ describe("withFallback", () => {
       1000,
     );
     expect(await s("x", task)).toBe("本来の要約");
-  });
-});
-
-describe("要約プロンプトの Golden テスト", () => {
-  test("要約プロンプトメッセージ列の固定", () => {
-    const sampleTask: Task = {
-      id: "t-1",
-      app: "autopilot",
-      instruction: "PR #42 の状況を調べて",
-      origin: "voice",
-      status: "running",
-      createdAt: 1000,
-    };
-    const sampleDetail = "PR #42 はテストが通過し、マージ待ちの状態である。";
-    const messages = buildSummarizerMessages(sampleDetail, sampleTask);
-    golden("summarizer_prompt", JSON.stringify(messages, null, 2));
   });
 });

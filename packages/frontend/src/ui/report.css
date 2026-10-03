@@ -1,0 +1,200 @@
+/* レポートパネル（ReportModal）のスタイル */
+
+.report-modal {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  z-index: 15;
+}
+
+.floating-modal.report-modal[hidden],
+.report-panel[hidden] {
+  display: none;
+}
+
+.report-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.report-body {
+  padding: 16px 18px;
+  max-height: min(600px, 70vh);
+  overflow-y: auto;
+  line-height: 1.65;
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+/* Markdown レンダリングのタイポグラフィ */
+.report-body h1,
+.report-body h2,
+.report-body h3,
+.report-body h4 {
+  color: #fff;
+  font-weight: 600;
+  margin-top: 18px;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.report-body h1:first-child,
+.report-body h2:first-child,
+.report-body h3:first-child {
+  margin-top: 0;
+}
+
+.report-body h1 {
+  font-size: 17px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-body h2 {
+  font-size: 15px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.report-body h3 {
+  font-size: 14px;
+}
+
+.report-body h4 {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.report-body p {
+  margin: 0 0 10px;
+}
+
+.report-body ul,
+.report-body ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.report-body li {
+  margin-bottom: 4px;
+}
+
+.report-body li > ul,
+.report-body li > ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.report-body blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  background: rgba(110, 168, 254, 0.06);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  color: #d0d7de;
+}
+
+.report-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.report-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.report-body pre {
+  margin: 12px 0;
+  padding: 12px;
+  background: rgba(10, 12, 16, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.report-body pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  border-radius: 0;
+}
+
+.report-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.report-body a:hover {
+  color: #9ac2ff;
+}
+
+.report-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+
+.report-body th,
+.report-body td {
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.report-body th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+  color: #fff;
+}
+
+.report-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* タスク一覧内の「レポートを見る」ボタン */
+.btn-view-report {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  background: rgba(110, 168, 254, 0.1);
+  border: 1px solid rgba(110, 168, 254, 0.3);
+  border-radius: 4px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-view-report:hover {
+  background: rgba(110, 168, 254, 0.2);
+  border-color: var(--accent);
+  color: #fff;
+}

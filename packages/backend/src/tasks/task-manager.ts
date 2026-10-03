@@ -1,12 +1,12 @@
-import type { Task } from "@nuage-home/shared";
+import type { Task, TaskOutput } from "@nuage-home/shared";
 
 /**
  * 裏で動くタスクの管理。WebSocket 接続・Live セッションから独立して保持する。
  * 当面はメモリ保持とする（docs/design/voice-task-orchestration.md 5 章）。
  */
 
-/** タスクの実行本体。結果の全文を返す */
-export type TaskRunner = (signal: AbortSignal) => Promise<string>;
+/** タスクの実行本体。構造化出力またはテキストを返す */
+export type TaskRunner = (signal: AbortSignal) => Promise<TaskOutput | string>;
 
 export interface NewTask {
   app: string;
@@ -16,8 +16,8 @@ export interface NewTask {
 
 export interface TaskResult {
   task: Task;
-  /** 成功時は結果全文、失敗時はエラー内容 */
-  output: string;
+  /** 成功時は結果、失敗時はエラー内容 */
+  output: TaskOutput | string;
 }
 
 export class TaskManager {
@@ -64,12 +64,39 @@ export class TaskManager {
     try {
       const output = await runner(controller.signal);
       if (controller.signal.aborted) return null;
-      this.update(task, { status: "succeeded", finishedAt: this.clock(), detail: output });
+
+      if (typeof output === "object" && output !== null && "speech" in output) {
+        this.update(task, {
+          status: "succeeded",
+          finishedAt: this.clock(),
+          summary: output.speech,
+          detail: output.report?.markdown ?? output.speech,
+          report: output.report
+            ? {
+                title: output.report.title,
+                markdown: output.report.markdown,
+                createdAt: this.clock(),
+              }
+            : undefined,
+        });
+      } else {
+        const text = String(output);
+        this.update(task, {
+          status: "succeeded",
+          finishedAt: this.clock(),
+          detail: text,
+        });
+      }
       return { task: { ...task }, output };
     } catch (err) {
       if (controller.signal.aborted) return null;
       const output = err instanceof Error ? err.message : String(err);
-      this.update(task, { status: "failed", finishedAt: this.clock(), detail: output });
+      this.update(task, {
+        status: "failed",
+        finishedAt: this.clock(),
+        summary: `作業に失敗した。${output}`,
+        detail: output,
+      });
       return { task: { ...task }, output };
     } finally {
       this.controllers.delete(id);

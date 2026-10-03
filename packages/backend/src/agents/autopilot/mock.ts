@@ -1,3 +1,4 @@
+import type { TaskOutput } from "@nuage-home/shared";
 import type { AppAgent } from "../types.ts";
 
 /**
@@ -27,19 +28,21 @@ function delay<T>(delayMs: number, signal: AbortSignal, fn: () => T): Promise<T>
   });
 }
 
-function mockAutopilotResult(instruction: string): string {
-  if (/止ま|なぜ|原因|落ち/.test(instruction)) {
-    return [
-      "PR #123 (feat: sandbox mode) は e2e テスト (playwright) のタイムアウトで CI が失敗して止まっている。",
-      "直近 3 回のうち 2 回で同じテストが落ちており、flaky の可能性が高い。再実行すれば通る見込み。",
-      "詳細: https://github.com/k-wa-wa/nuage-home/actions/runs/0000",
-    ].join("\n");
-  }
-  if (/進め|OK|承認|マージ/.test(instruction)) {
-    return "Issue #45 に「OK」とコメントした。実装ジョブがキューに入り、20 分ほどで PR が作られる見込み。";
-  }
+function mockAutopilotResult(instruction: string): TaskOutput {
   if (/失敗|エラー/.test(instruction)) {
     throw new Error("autopilot に接続できなかった。");
   }
-  return "自分の番になっているカードが 2 件ある。1 件は仕様確認待ちの Issue #45、もう 1 件はマージ判断待ちの PR #120。実行中のジョブは 1 件。";
+  if (/止ま|なぜ|原因|落ち/.test(instruction)) {
+    return {
+      speech: "プルリクエストはテストのタイムアウトで止まっているよ。再実行すれば通る見込みだよ。",
+    };
+  }
+  if (/進め|OK|承認|マージ/.test(instruction)) {
+    return {
+      speech: "イシューに了解とコメントしたよ。実装ジョブがキューに入ったよ。",
+    };
+  }
+  return {
+    speech: "自分の番になっているカードが2件あるよ。仕様確認待ちとマージ判断待ちだよ。",
+  };
 }

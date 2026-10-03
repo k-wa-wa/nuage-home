@@ -18,6 +18,25 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   cancelled: "取り消し",
 };
 
+export interface TaskReport {
+  title: string;
+  markdown: string;
+  createdAt: number;
+}
+
+/**
+ * 専門エージェントが完了時に返す構造化出力。
+ */
+export interface TaskOutput {
+  /** 音声読み上げ用の短い文章（1〜2文、ID・記号なし） */
+  speech: string;
+  /** 画面用の詳細レポート（任意） */
+  report?: {
+    title: string;
+    markdown: string;
+  };
+}
+
 export interface Task {
   id: string;
   /** 仕事を引き受けた専門エージェントの名前 */
@@ -29,8 +48,18 @@ export interface Task {
   finishedAt?: number;
   /** 音声向けの要約（ID・略語を含めない） */
   summary?: string;
-  /** 画面表示用の全文 */
+  /** 画面表示用の全文（後方互換・自由文用） */
   detail?: string;
+  /** 画面に表示する詳細レポート（complete_task ツール等で作成された場合のみ存在） */
+  report?: TaskReport;
+}
+
+/**
+ * タスクがレポート表示の対象（調査結果など）であるかを判定する。
+ * report オブジェクトが明示的に存在する場合のみ対象とする。
+ */
+export function isReportTask(task: Task | null | undefined): boolean {
+  return Boolean(task?.report);
 }
 
 export type NotificationPriority = "urgent" | "normal" | "low";
@@ -54,6 +83,13 @@ export interface Notification {
 }
 
 export type FloorStateName = "idle" | "user_speaking" | "awaiting_model" | "model_speaking";
+
+export const FLOOR_LABEL: Record<FloorStateName, string> = {
+  idle: "待機",
+  user_speaking: "あなたが発話中",
+  awaiting_model: "応答待ち",
+  model_speaking: "アシスタントが発話中",
+};
 
 // ---------------------------------------------------------------------------
 // 会話の構成

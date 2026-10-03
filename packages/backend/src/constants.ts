@@ -17,10 +17,7 @@ export const TUNING = {
   notificationExpireMs: 10 * 60_000,
   /** 通知キューを評価する間隔 */
   tickIntervalMs: 200,
-  /**
-   * LLM 要約の上限時間。超えたら LLM を使わない要約に切り替える。
-   * 要約モデル sakura/auto の実測 5.6〜8.1 秒（2026-09-29）に余裕を持たせた値
-   */
+  /** LLM 要約の上限時間。超えたら LLM を使わない簡易要約に切り替える */
   summaryTimeoutMs: 15_000,
   /** これより短い発話はノイズとして捨てる（16kHz・16bit・モノラルで 0.35 秒） */
   minSpeechBytes: 11_200,

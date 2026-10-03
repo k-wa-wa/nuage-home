@@ -1,6 +1,8 @@
 import type { LlmConfig } from "../config.ts";
 import type { OpenAITool } from "../tools/types.ts";
 
+export type { OpenAITool };
+
 export interface ToolCall {
   id: string;
   type: "function";

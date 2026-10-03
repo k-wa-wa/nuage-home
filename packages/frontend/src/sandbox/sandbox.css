@@ -1,17 +1,23 @@
-/* サンドボックス固有のレイアウト。色・チップ・一覧は ui/theme.css */
+/* サンドボックス固有のレイアウト。色・チップ・一覧・フローティングモーダルは ui/theme.css */
 
 .sb-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
+  background: rgba(11, 13, 16, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .sb-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .sb-field {
@@ -19,39 +25,32 @@
   align-items: center;
   gap: 8px;
   color: var(--muted);
+  font-size: 13px;
 }
 
 .sb-fixed {
   color: var(--text);
 }
 
-.sb-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
-  gap: 16px;
+.sb-stage {
+  position: relative;
+  width: 100vw;
+  min-height: calc(100vh - 53px);
+  box-sizing: border-box;
   padding: 16px;
-  height: calc(100vh - 58px);
-}
-
-@media (max-width: 900px) {
-  .sb-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .sb-log {
-    max-height: 50vh;
-  }
 }
 
 .sb-chat {
+  width: 500px;
+  max-width: calc(100vw - 32px);
+  height: calc(100vh - 85px);
   display: flex;
   flex-direction: column;
-  min-height: 0;
   gap: 8px;
-}
-
-.sb-floor {
-  color: var(--muted);
+  background: rgba(21, 25, 32, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sb-log {
@@ -67,7 +66,7 @@
 }
 
 .sb-line {
-  max-width: 80%;
+  max-width: 85%;
   padding: 8px 12px;
   border-radius: 12px;
   white-space: pre-wrap;
@@ -95,17 +94,31 @@
   font-size: 12px;
 }
 
-.sb-scenario,
-.sb-debug {
+.sb-scenario {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
+.sb-scenario button {
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
 .sb-debug {
-  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
   margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sb-debug button {
+  font-size: 11px;
+  padding: 2px 6px;
 }
 
 .sb-form {
@@ -124,16 +137,13 @@
   font: inherit;
 }
 
-.sb-side {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 0;
-  overflow-y: auto;
+/* サンドボックス固有の Live IO モーダル */
+.sb-io-modal {
+  width: 380px;
 }
 
 .sb-io {
-  max-height: 40vh;
+  max-height: min(340px, 35vh);
   overflow-y: auto;
 }
 
@@ -141,4 +151,5 @@
   color: var(--muted);
   white-space: pre-wrap;
   word-break: break-all;
+  font-size: 12px;
 }

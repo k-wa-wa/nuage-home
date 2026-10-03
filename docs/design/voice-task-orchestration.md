@@ -239,7 +239,7 @@ interface Notification {
 | タスクの永続化 | 後回し。当面はメモリ保持とする |
 | `grace`・会話中判定の閾値 | 2.5 秒 / 10 秒で確定 |
 | 相乗りの指示文 | B 方式（ルールを system instruction に置く）で確定（11 章） |
-| 要約に使うモデル | 要約専用のモデルを `LITELLM_SUMMARY_MODEL` で指定する（`sakura/auto`）。上限 15 秒を超えたら LLM を使わない簡易要約に切り替える（12 章）。サンドボックスでは画面で LLM（モック / LiteLLM）を選ぶ |
+| 要約に使うモデル | タスク完了報告のスキーマ化（`complete_task` / `TaskOutput`）に伴い、事後要約 LLM および `LITELLM_SUMMARY_MODEL` は撤廃。エージェント自身が `speech` を出力し、未設定時のみ `plainSummarizer` でフォールバックする |
 | 複数端末 | 当面は考慮しない |
 
 ---
@@ -272,10 +272,10 @@ interface Notification {
 
 音声モード（`/ws/live`）とサンドボックス（`/ws/sandbox`）は、同じ Orchestrator と同じメッセージ（`packages/shared`）を使う。違いは使う部品だけである。
 
-| 経路 | Live | LLM（要約） | 専門エージェント | 即答ツール |
-| :-- | :-- | :-- | :-- | :-- |
-| `/ws/live` | Gemini Live（音声） | LiteLLM の要約用モデル（15 秒で簡易要約に切り替え） | 調査エージェント（`add_task`） | なし |
-| `/ws/sandbox?live=&llm=&delay=` | モック / Gemini Live（テキスト） | モック / LiteLLM | モック autopilot（固定） | なし |
+| 経路 | Live | 専門エージェント | 即答ツール |
+| :-- | :-- | :-- | :-- |
+| `/ws/live` | Gemini Live（音声） | 調査エージェント（`add_task`） / スマートホーム | なし |
+| `/ws/sandbox?live=&delay=` | モック / Gemini Live（テキスト） | モック（固定） | なし |
 
 backend の構成（`packages/backend/src/`）:
 
@@ -397,4 +397,39 @@ frontend は、音声モード（`main.ts`・`voice/`）とサンドボックス
    - `packages/frontend/src/voice/audio-player.ts` において、`AudioBufferSourceNode.playbackRate` を導入し、デフォルト再生速度を `DEFAULT_PLAYBACK_RATE = 1.15`（1.15倍速）に設定した。
    - チャンクの再生スケジューリング計算を `audioBuffer.duration / this.playbackRate` に補正することで、チャンク間に無音の隙間を一切作らずに連続再生されるようにした。
    - 1.15倍速は音程（ピッチ）の違和感を生じさせず、自然で聞き取りやすくサクサクした会話テンポを実現する。
+
+---
+
+## 17. 調査レポートの Markdown 表示と Report パネル（2026-10-03）
+
+### 課題
+1. **長文調査レポートの可読性不足**:
+   - 調査エージェント（`research`）は自律的に Web 検索・ページ閲覧を行い詳細な Markdown レポートを作成するが、画面側（`ui/board.ts`）では幅 320px の Tasks パネル内で `<pre>` による素のテキスト折りたたみとして表示されていたため、見出しや箇条書き、リンクなどの装飾が活きず可読性が著しく損なわれていた。
+2. **閲覧用パネルの独立性**:
+   - 数千文字に及ぶレポートを快適に精読するためには、タスク一覧リストとは独立した、ドラッグ可能で広めの専用表示領域が求められていた。
+
+### 決定と実装
+1. **フローティング Report モーダル（`ReportModal`）の新設と React コンポーネント化**:
+   - Tasks や Notification と同じ半透明ダークグラスおよびドラッグ移動機構（`setupDraggable`）を持つ浮動モーダルコンポーネント（`FloatingModal`）を共通化し、`ReportModal` を設けた。
+   - レポート閲覧用に幅広（560px、最大高さ 70vh）とし、ヘッダーにタイトルと閉じるボタン（✕）を備える。
+   - 親コンポーネントの再レンダリング時（メッセージ受信や入力時など）にモーダル位置が初期値に戻ってしまわないよう、初回マウント時のみ初期位置を適用し、ドラッグ後の移動位置を保持する。
+2. **開いた順・操作順の手前化（z-index 制御）**:
+   - `bringToFront` 機構を導入し、モーダルが表示された瞬間（マウント・再オープン時）に z-index をインクリメントして常に最も手前に開くようにした。
+   - 既存のモーダルをクリックした際も最前面に浮上する。
+3. **Markdown レンダリングと XSS 防御**:
+   - `marked` による GFM Markdown パースと、`DOMPurify` による厳格なサニタイズを組み合わせた `renderMarkdown` を導入した。
+   - 外部リンクには自動的に `target="_blank"` と `rel="noopener noreferrer"` を付与し、安全に別タブで開けるようにした。
+4. **タスク報告のスキーマ化（`complete_task` ツールと `TaskOutput`）**:
+   - 以前はタスク完了時の長文出力に対し、事後要約 LLM（`summarizer`）を呼んで音声用要約を作っていたため、5〜8秒以上の遅延と要約時の文脈ズレが生じていた。また、家電操作などすべてのタスクで画面レポートが開いてしまう課題があった。
+   - バックエンド AI の完了報告をスキーマ化し、`complete_task` ツール（`speech`: 音声読み上げ用1〜2文、`report`: 画面用詳細レポート）を導入した。
+   - 調査エージェントは自律調査後に `complete_task` を呼んで音声要約と画面レポートを同時に出力する。家電操作などの通常タスクは `speech` のみを返す（`report: undefined`）。
+   - これにより、事後の要約 LLM 呼び出しが不要となりタスク完了と同時にゼロ遅延で音声通知されるようになった。
+   - 画面側も `task.report != null` の有無だけでレポートボタンや自動ポップアップを100%型安全に判定できるようになり、正規表現等による推測処理を完全撤廃した。
+5. **音声モードとサンドボックスでの UI 統一**:
+   - 音声モード（`/`）とサンドボックス（`/sandbox.html`）の両方で同一のフローティングモーダル構成（Tasks, Notification, Report, Live IO）へ共通化した。
+6. **`LITELLM_SUMMARY_MODEL` の完全撤廃**:
+   - タスク完了報告のスキーマ化に伴い、事後要約専用 LLM（`LITELLM_SUMMARY_MODEL`）、タイムアウト監視（`withFallback`）、サンドボックス画面の「LLM（要約）」選択プルダウンを完全に撤廃した。
+   - エージェント自身が `speech` を出力し、`task.summary` が空の場合のみ安全なフォールバック（`plainSummarizer`）で即時に切り詰めるため、外部 LLM への直列リクエストによる遅延が根本的に解消された。
+
+
 

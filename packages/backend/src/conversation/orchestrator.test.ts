@@ -66,7 +66,6 @@ async function setup() {
     live,
     hub,
     apps: [autopilot],
-    summarize: async (detail) => `要約: ${detail}`,
     send: (m) => out.push(m),
     manualTick: true,
   });
@@ -143,11 +142,11 @@ describe("Orchestrator", () => {
     await flush();
     expect(hub.tasks.list()[0]).toMatchObject({
       status: "succeeded",
-      summary: "要約: e2e テストのタイムアウトで止まっている",
+      summary: "e2e テストのタイムアウトで止まっている",
     });
     expect(live.sent.at(-1)).toEqual({
       kind: "prompt",
-      text: "[通知] 要約: e2e テストのタイムアウトで止まっている",
+      text: "[通知] e2e テストのタイムアウトで止まっている",
     });
     expect(orch.floorState.state).toBe("awaiting_model");
 
@@ -180,7 +179,7 @@ describe("Orchestrator", () => {
     userTurn("嵐山ならお昼はどこがいい？");
     const lastTwo = live.sent.slice(-2);
     expect(lastTwo).toEqual([
-      { kind: "context", text: "[相乗り通知] 要約: タイムアウトで停止" },
+      { kind: "context", text: "[相乗り通知] タイムアウトで停止" },
       { kind: "user", text: "嵐山ならお昼はどこがいい？" },
     ]);
     expect(hub.queue.list()[0].state).toBe("delivered");
@@ -355,7 +354,6 @@ describe("Orchestrator", () => {
       live,
       hub,
       apps: [{ name: "autopilot", description: "開発", ask: async () => "ok" }],
-      summarize: async (detail) => `要約: ${detail}`,
       send: (m) => out.push(m),
       manualTick: true,
     });
@@ -397,7 +395,7 @@ describe("Orchestrator", () => {
 
     expect(live.sent.at(-1)).toEqual({
       kind: "prompt",
-      text: "[通知] 要約: PR は e2e のタイムアウトで失敗",
+      text: "[通知] PR は e2e のタイムアウトで失敗",
     });
   });
 
@@ -410,7 +408,6 @@ describe("Orchestrator", () => {
       live,
       hub,
       apps: [{ name: "autopilot", description: "開発", ask: async () => "ok" }],
-      summarize: async (detail) => `要約: ${detail}`,
       send: (m) => out.push(m),
       manualTick: true,
     });

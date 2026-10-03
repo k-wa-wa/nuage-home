@@ -16,16 +16,13 @@ export interface ConversationTool {
 export interface ConversationToolDeps {
   hub: OrchestrationHub;
   apps: AppAgent[];
-  summarize: Summarizer;
+  summarize?: Summarizer;
 }
 
 export function buildTools(apps: AppAgent[]): FunctionDeclaration[] {
-  // ダミーの hub, summarize を渡して declaration だけ取り出す
+  // ダミーの hub を渡して declaration だけ取り出す
   const dummyHub = { tasks: { list: () => [], cancel: () => null } } as unknown as OrchestrationHub;
-  const dummySummarize = async () => "";
-  return createConversationTools({ hub: dummyHub, apps, summarize: dummySummarize }).map(
-    (t) => t.declaration,
-  );
+  return createConversationTools({ hub: dummyHub, apps }).map((t) => t.declaration);
 }
 
 export function createConversationTools(deps: ConversationToolDeps): ConversationTool[] {

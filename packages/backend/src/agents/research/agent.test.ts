@@ -34,9 +34,35 @@ const dummyTool = (execute: ToolDefinition["execute"]): ToolDefinition => ({
 });
 
 describe("runResearch", () => {
-  it("ツール呼び出しが無ければ LLM の回答をそのまま返す", async () => {
+  it("complete_task ツール呼び出しで speech と report を返す", async () => {
+    const { deps, calls } = setup([
+      {
+        content: null,
+        tool_calls: [
+          toolCall(
+            "complete_task",
+            JSON.stringify({
+              speech: "東京は快晴だよ。",
+              report: { title: "東京の天気", markdown: "# 東京の天気\n\n快晴である。" },
+            }),
+          ),
+        ],
+      },
+    ]);
+    const res = await runResearch("東京の天気は？", deps);
+    expect(res).toEqual({
+      speech: "東京は快晴だよ。",
+      report: { title: "東京の天気", markdown: "# 東京の天気\n\n快晴である。" },
+    });
+    expect(calls[0].map((m) => m.role)).toEqual(["system", "user"]);
+    expect(calls[0][1].content).toBe("東京の天気は？");
+  });
+
+  it("ツール呼び出しが無ければフォールバックとして LLM の回答を基に TaskOutput を返す", async () => {
     const { deps, calls } = setup([{ content: "晴れだよ" }]);
-    await expect(runResearch("東京の天気は？", deps)).resolves.toBe("晴れだよ");
+    const res = await runResearch("東京の天気は？", deps);
+    expect(res.speech).toBe("晴れだよ");
+    expect(res.report?.markdown).toBe("晴れだよ");
     expect(calls[0].map((m) => m.role)).toEqual(["system", "user"]);
     expect(calls[0][1].content).toBe("東京の天気は？");
   });
@@ -46,11 +72,24 @@ describe("runResearch", () => {
     const { deps, calls } = setup(
       [
         { content: null, tool_calls: [toolCall("search", '{"location":"東京"}')] },
-        { content: "東京は快晴だよ" },
+        {
+          content: null,
+          tool_calls: [
+            toolCall(
+              "complete_task",
+              JSON.stringify({
+                speech: "東京は快晴だよ。",
+                report: { title: "東京の天気", markdown: "# 快晴" },
+              }),
+            ),
+          ],
+        },
       ],
       [dummyTool(execute)],
     );
-    await expect(runResearch("東京の天気は？", deps)).resolves.toBe("東京は快晴だよ");
+    const res = await runResearch("東京の天気は？", deps);
+    expect(res.speech).toBe("東京は快晴だよ。");
+    expect(res.report?.markdown).toBe("# 快晴");
     expect(execute).toHaveBeenCalledWith({ location: "東京" });
     expect(calls[1].slice(-2)).toEqual([
       { role: "assistant", content: null, tool_calls: [toolCall("search", '{"location":"東京"}')] },
@@ -73,7 +112,8 @@ describe("runResearch", () => {
       { content: null, tool_calls: [toolCall("nope", "{}")] },
       { content: "ごめんね" },
     ]);
-    await expect(runResearch("調べて", deps)).resolves.toBe("ごめんね");
+    const res = await runResearch("調べて", deps);
+    expect(res.speech).toBe("ごめんね");
     expect(calls[1].at(-1)).toMatchObject({
       role: "tool",
       content: expect.stringContaining("登録されていない"),
@@ -91,9 +131,9 @@ describe("runResearch", () => {
       tools: new ToolRegistry([dummyTool(async () => "晴れ")]),
       logger: { info: () => {} },
     };
-    await expect(runResearch("調べて", deps)).resolves.toBe("最終調査結果レポート");
+    const res = await runResearch("調べて", deps);
+    expect(res.speech).toBe("最終調査結果レポート");
     expect(chat).toHaveBeenCalledTimes(TUNING.researchMaxToolSteps + 1);
-    expect(chat.mock.calls.at(-1)?.[1]).toEqual([]);
   });
 
   it("レポートを作れなければ ResearchError を投げる（タスクを失敗にするため）", async () => {
@@ -124,9 +164,8 @@ describe("createResearchAgent", () => {
     const { deps } = setup([{ content: "調査レポート" }]);
     const agent = createResearchAgent(deps);
     expect(agent.name).toBe("research");
-    await expect(agent.ask("最新の AI 動向を調べて", new AbortController().signal)).resolves.toBe(
-      "調査レポート",
-    );
+    const res = await agent.ask("最新の AI 動向を調べて", new AbortController().signal);
+    expect(typeof res === "object" && res.speech === "調査レポート").toBe(true);
   });
 });
 

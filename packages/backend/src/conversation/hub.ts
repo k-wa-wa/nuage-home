@@ -1,5 +1,5 @@
 import type { Notification, Task } from "@nuage-home/shared";
-import type { Summarizer } from "../tasks/summarizer.ts";
+import { plainSummarizer, type Summarizer } from "../tasks/summarizer.ts";
 import { type NewTask, TaskManager, type TaskRunner } from "../tasks/task-manager.ts";
 import { DEFAULT_FLOOR_TIMING, type FloorTiming } from "./floor.ts";
 import { type NewNotification, NotificationQueue } from "./notification-queue.ts";
@@ -7,7 +7,7 @@ import { type NewNotification, NotificationQueue } from "./notification-queue.ts
 /**
  * 接続を跨いで共有する状態（タスクと通知）。
  * Live セッションが切れてもタスクと未配送の通知を失わないよう、プロセスに 1 つ置く。
- * どの専門エージェント・要約を使うかは接続ごとに決める（Orchestrator 側で持つ）。
+ * どの専門エージェントを使うかは接続ごとに決める（Orchestrator 側で持つ）。
  */
 export class OrchestrationHub {
   readonly tasks: TaskManager;
@@ -65,11 +65,11 @@ export class OrchestrationHub {
     return n;
   }
 
-  /** タスクを起動し、完了したら要約して通知キューに積む。完了を待つ Promise も返す */
+  /** タスクを起動し、完了したら通知キューに積む。完了を待つ Promise も返す */
   startTask(
     input: NewTask,
     runner: TaskRunner,
-    summarize: Summarizer,
+    summarize?: Summarizer,
   ): { task: Task; done: Promise<void> } {
     const gen = this.generation;
     const task = this.tasks.create(input);
@@ -77,17 +77,27 @@ export class OrchestrationHub {
       // リセットされた後に終わったタスクは通知しない
       if (!res || gen !== this.generation) return;
       const ok = res.task.status === "succeeded";
-      let summary: string;
-      try {
-        summary = ok
-          ? await summarize(res.output, res.task)
-          : `頼まれていた作業は失敗した。${firstSentence(res.output)}`;
-      } catch {
-        summary = firstSentence(res.output);
+
+      let summary = res.task.summary;
+      if (!summary) {
+        try {
+          const rawOutput = typeof res.output === "string" ? res.output : res.output.speech;
+          const fallbackFn = summarize ?? plainSummarizer;
+          summary = ok
+            ? await fallbackFn(rawOutput, res.task)
+            : `頼まれていた作業は失敗した。${firstSentence(rawOutput)}`;
+        } catch {
+          const rawOutput = typeof res.output === "string" ? res.output : res.output.speech;
+          summary = firstSentence(rawOutput);
+        }
       }
+
       if (gen !== this.generation) return;
-      this.tasks.setSummary(task.id, summary);
-      this.notify({ priority: "normal", summary, detail: res.output, taskId: task.id });
+      if (summary !== res.task.summary) {
+        this.tasks.setSummary(task.id, summary);
+      }
+      const detail = res.task.report?.markdown ?? res.task.detail;
+      this.notify({ priority: "normal", summary, detail, taskId: task.id });
     });
     return { task, done };
   }

@@ -31,8 +31,8 @@ export interface OrchestratorOptions {
   hub: OrchestrationHub;
   /** この会話で使う専門エージェント（呼ばれるとタスクとして裏で動く） */
   apps: AppAgent[];
-  /** この会話で使う要約 */
-  summarize: Summarizer;
+  /** この会話で使う要約（任意、未指定時は plainSummarizer でフォールバック） */
+  summarize?: Summarizer;
   /** 画面（クライアント）への送信 */
   send: (msg: ConversationServerMessage) => void;
   /** 通知キューを自動で評価しない（テスト用） */

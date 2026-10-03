@@ -18,6 +18,5 @@ configMapGenerator:
       - GEMINI_LIVE_BASE_URL=http://gemini-live-proxy.litellm.svc.cluster.local:8080
       - LITELLM_API_KEY=dummy
       - LITELLM_MODEL=auto
-      - LITELLM_SUMMARY_MODEL=auto
       - BWPROXY_URL=http://bare-web-proxy-service.bare-web-proxy.svc.cluster.local
       - GEMINI_LIVE_MODEL=models/gemini-3.8-live

@@ -199,6 +199,20 @@ export class VoiceClient {
     else this.cb.onStateChange("stopped");
   }
 
+  /** WebSocket を切断し、再接続タイマーと音声入出力を完全に停止する */
+  close(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.stop();
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
   toggle(): void {
     if (this.running) this.stop();
     else
