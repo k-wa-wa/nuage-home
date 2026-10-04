@@ -36,7 +36,7 @@ export const COMPLETE_TASK_TOOL: OpenAITool = {
         speech: {
           type: "string",
           description:
-            "音声でそのまま読み上げるための1〜2文（目安60文字以内）の短い報告。IDや記号（#、*、-など）を含めず、自然な話し言葉にする。",
+            "音声でそのまま読み上げるための1〜2文（目安60文字以内）の短い報告。丁寧な敬語（です・ます調）で、IDや記号（#、*、-など）を含めず、自然な話し言葉にする。",
         },
         report: {
           type: "object",
@@ -94,7 +94,7 @@ export function buildSystemPrompt(
     "- 検索結果が見つからない・的外れな場合は、キーワードの言い換えや別の切り口で粘り強く再検索する。",
     "- ページの取得に失敗した（エラーやアクセス拒否）場合は、諦めずに別の検索結果リンクを試す。",
     "- 必要な情報や根拠が集まったら追加の検索はせず、速やかに complete_task ツールを呼び出して調査を完了すること。",
-    "- complete_task ツールの speech にはユーザーに音声で話しかける1〜2文の簡潔な要約を、report には画面で閲覧するための見出しや箇条書きを含む詳細なMarkdownレポートを指定すること。",
+    "- complete_task ツールの speech にはユーザーに音声で話しかける丁寧な敬語（です・ます調）の1〜2文の簡潔な要約を、report には画面で閲覧するための見出しや箇条書きを含む詳細なMarkdownレポートを指定すること。",
     "最新の情報を検索・調査する際は、現在の年（2026年）を前提とする。",
     ...(location ? [formatLocation(location)] : []),
     `現在日時: ${date} ${time}`,
@@ -129,7 +129,7 @@ export async function runResearch(
           const speech =
             typeof args.speech === "string" && args.speech
               ? args.speech
-              : res.content || "調査が完了した。";
+              : res.content || "調査が完了しました。";
           let report: TaskOutput["report"] | undefined;
           if (typeof args.report === "object" && args.report !== null) {
             const r = args.report as Record<string, unknown>;
@@ -167,7 +167,7 @@ export async function runResearch(
       if (completeCall) {
         const args = parseToolArgs(completeCall.function.arguments);
         const speech =
-          typeof args.speech === "string" && args.speech ? args.speech : "調査が完了した。";
+          typeof args.speech === "string" && args.speech ? args.speech : "調査が完了しました。";
         let report: TaskOutput["report"] | undefined;
         if (typeof args.report === "object" && args.report !== null) {
           const r = args.report as Record<string, unknown>;
@@ -188,7 +188,7 @@ export async function runResearch(
 
 function fallbackTaskOutput(instruction: string, content: string): TaskOutput {
   const first = content.split(/(?<=[。！？!?\n])/)[0]?.trim() ?? "";
-  const speech = first.length > 80 ? `${first.slice(0, 80)}…` : first || "調査が完了した。";
+  const speech = first.length > 80 ? `${first.slice(0, 80)}…` : first || "調査が完了しました。";
   return {
     speech,
     report: {

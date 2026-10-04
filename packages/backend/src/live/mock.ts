@@ -153,7 +153,7 @@ export class MockLivePort implements LivePort {
       if (res.status !== "accepted") return "ごめん、うまく頼めなかった。";
       const inst = typeof res.instruction === "string" ? res.instruction : "";
       const scenario = findScenarioForLive(inst);
-      return scenario?.expected.ackSpeech ?? "了解、やっておくね。";
+      return scenario?.expected.ackSpeech ?? "承知いたしました。やっておきますね。";
     }
     if (r.name === "cancel_task")
       return res.status === "cancelled"

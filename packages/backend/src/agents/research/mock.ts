@@ -45,7 +45,7 @@ function mockResearchResult(instruction: string): TaskOutput {
     ].join("\n");
 
     return {
-      speech: `「${inst}」の調査が完了したよ。主要なポイントを画面にまとめたよ。`,
+      speech: `「${inst}」の調査が完了しました。主要なポイントを画面にまとめました。`,
       report: {
         title: `「${inst}」の調査レポート`,
         markdown,

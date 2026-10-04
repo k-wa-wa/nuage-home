@@ -34,6 +34,6 @@ function mockAutopilotResult(instruction: string): TaskOutput {
     throw new Error("autopilot に接続できなかった。");
   }
   return matchScenarioOutput("autopilot", instruction, () => ({
-    speech: "開発タスクの確認が完了したよ。",
+    speech: "開発タスクの確認が完了しました。",
   }));
 }

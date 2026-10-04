@@ -34,15 +34,8 @@ export interface E2EScenario {
     output: TaskOutput;
   };
 
-  /** LLM as a Judge の評価基準 */
-  criteria: {
-    /** 言葉遣い・トーン（常体、音声での聞き取りやすさなど） */
-    tone: string;
-    /** 意味的正確性・含まれるべき情報 */
-    accuracy: string;
-    /** 禁止事項（例: 敬体「です・ます」、URLやIDの読み上げ） */
-    prohibited?: string[];
-  };
+  /** LLM as a Judge の評価基準（自然言語の箇条書きや文章） */
+  criteria: string | string[];
 }
 
 /** 実際の E2E 実行結果 */

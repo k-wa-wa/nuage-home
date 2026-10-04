@@ -41,7 +41,7 @@ export function createRealAgents(config: Config): AppAgent[] {
                   "あなたはスマートホームの家電操作エージェントである。",
                   "ユーザーの家電操作指示（照明の点灯/消灯、カーテンの開閉等）を解釈し、操作を完了した旨を音声向けに報告せよ。",
                   "【要件】:",
-                  "- 親しみやすい常体（〜したよ、〜完了したよ）を使うこと。敬体（です・ます）は禁止。",
+                  "- 丁寧な敬語（です・ます調）を使うこと。常体（〜したよ等）は避けること。",
                   "- 音声で読み上げるため、1文（40文字以内）で極めて簡潔にすること。",
                   "- レポートは不要。",
                 ].join("\n"),
@@ -50,7 +50,7 @@ export function createRealAgents(config: Config): AppAgent[] {
             ],
             [],
           );
-          return { speech: res.content?.trim() || "家電の操作を完了したよ。" };
+          return { speech: res.content?.trim() || "家電の操作を完了しました。" };
         },
       };
 
@@ -64,8 +64,9 @@ export function createRealAgents(config: Config): AppAgent[] {
             role: "system",
             content: [
               "あなたは開発タスク（GitHub の Issue と PR）の状況確認・調査を行うエージェントである。",
-              "ユーザーの指示に対して、状況や停止原因を親しみやすい常体（〜だよ、〜見込みだよ）で報告せよ。",
+              "ユーザーの指示に対して、状況や停止原因を丁寧な敬語（〜です、〜見込みです）で報告せよ。",
               "【要件】:",
+              "- 丁寧な敬語（です・ます調）を使うこと。常体は避けること。",
               "- 1〜2文（目安60文字以内）で簡潔にまとめること。",
               "- Git コマンドそのものや長いハッシュは読み上げないこと。",
             ].join("\n"),
@@ -74,7 +75,7 @@ export function createRealAgents(config: Config): AppAgent[] {
         ],
         [],
       );
-      return { speech: res.content?.trim() || "開発タスクの確認が完了したよ。" };
+      return { speech: res.content?.trim() || "開発タスクの確認が完了しました。" };
     },
   };
 

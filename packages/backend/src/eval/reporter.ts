@@ -104,10 +104,12 @@ export function writeMarkdownReport(
     // 評価基準
     lines.push("");
     lines.push(`#### 📋 評価基準 (Criteria)`);
-    lines.push(`- **言葉遣い・トーン**: ${scenario.criteria.tone}`);
-    lines.push(`- **意味的正確性**: ${scenario.criteria.accuracy}`);
-    if (scenario.criteria.prohibited && scenario.criteria.prohibited.length > 0) {
-      lines.push(`- **禁止事項**: ${scenario.criteria.prohibited.join("、")}`);
+    if (Array.isArray(scenario.criteria)) {
+      for (const c of scenario.criteria) {
+        lines.push(`- ${c}`);
+      }
+    } else {
+      lines.push(scenario.criteria);
     }
     lines.push("");
 

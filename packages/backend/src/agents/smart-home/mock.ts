@@ -34,6 +34,6 @@ function mockSmartHomeResult(instruction: string): TaskOutput {
     throw new Error("SwitchBot デバイスが応答しなかった。");
   }
   return matchScenarioOutput("smart_home", instruction, () => ({
-    speech: "指定された家電デバイスの操作コマンドを実行したよ。",
+    speech: "指定された家電デバイスの操作コマンドを実行しました。",
   }));
 }
