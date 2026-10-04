@@ -106,4 +106,28 @@ describe("WebSpeechRecognizer", () => {
     vi.stubGlobal("webkitSpeechRecognition", undefined);
     expect(() => new WebSpeechRecognizer("ja-JP")).toThrow("not supported");
   });
+
+  it("attentionProvider が false の時は認識結果を破棄してプレビューをクリアする", () => {
+    const recognizer = new WebSpeechRecognizer("ja-JP");
+    const onFinal = vi.fn();
+    const onInterim = vi.fn();
+    recognizer.onFinal = onFinal;
+    recognizer.onInterim = onInterim;
+
+    let isLooking = false;
+    recognizer.setAttentionProvider(() => isLooking);
+
+    // 画面を見ていない時
+    FakeRecognition.last.emitResult("誰かの声", false);
+    expect(onInterim).toHaveBeenCalledWith("");
+    expect(onFinal).not.toHaveBeenCalled();
+
+    onInterim.mockClear();
+
+    // 画面を向いた時
+    isLooking = true;
+    FakeRecognition.last.emitResult("こんにちは", true);
+    expect(onFinal).toHaveBeenCalledWith("こんにちは");
+    expect(onInterim).toHaveBeenCalledWith("");
+  });
 });

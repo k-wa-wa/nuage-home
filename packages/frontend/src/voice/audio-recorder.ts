@@ -39,6 +39,8 @@ export interface AudioRecorderCallbacks {
   onSpeechEnd?: () => void;
   onSpeechCancel?: () => void;
   onLevel?: (rms: number, isSpeaking: boolean) => void;
+  /** ユーザーが画面・カメラに注意を向けているか（Look and Talk ゲート用） */
+  attentionProvider?: () => boolean;
 }
 
 /**
@@ -69,17 +71,25 @@ export class AudioRecorder {
     }
   }
 
-  async start(): Promise<void> {
+  setAttentionProvider(provider: (() => boolean) | undefined): void {
+    this.callbacks.attentionProvider = provider;
+  }
+
+  async start(existingStream?: MediaStream): Promise<void> {
     if (this.isRecording) return;
 
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    if (existingStream) {
+      this.mediaStream = existingStream;
+    } else {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+    }
 
     // ブラウザネイティブのサンプリングレートで初期化（ハードウェアの制限に合致させる）
     this.audioContext = new AudioContext();
@@ -130,6 +140,16 @@ export class AudioRecorder {
       const base64 = this.arrayBufferToBase64(pcm16.buffer);
 
       if (rms > speechThreshold) {
+        // Look and Talk ゲート: 画面を見ていない場合、発話開始を遮断（別端末音や雑音の誤反応防止）
+        if (!this.isSpeechActive && this.callbacks.attentionProvider) {
+          const hasAttention = this.callbacks.attentionProvider();
+          if (!hasAttention) {
+            this.consecutiveSpeechFrames = 0;
+            this.preRollBuffer = [];
+            return;
+          }
+        }
+
         this.silenceFrames = 0;
         this.consecutiveSpeechFrames++;
 

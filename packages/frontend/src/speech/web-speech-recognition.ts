@@ -32,6 +32,7 @@ export class WebSpeechRecognizer {
   private recognition: Recognition;
   private active = false;
   private suspended = false;
+  private attentionProvider?: () => boolean;
 
   constructor(lang: string) {
     const Ctor = getRecognitionCtor();
@@ -44,6 +45,12 @@ export class WebSpeechRecognizer {
     this.recognition.interimResults = true;
 
     this.recognition.onresult = (event) => {
+      // ユーザーが画面を見ていない（Look & Talk ゲート非通過）時は認識結果を破棄してプレビューをクリア
+      if (this.attentionProvider && !this.attentionProvider()) {
+        this.onInterim("");
+        return;
+      }
+
       const last = event.results[event.results.length - 1];
       const text = last[0].transcript.trim();
       if (last.isFinal) {
@@ -69,6 +76,10 @@ export class WebSpeechRecognizer {
         console.error("SpeechRecognition error", event.error);
       }
     };
+  }
+
+  setAttentionProvider(provider: (() => boolean) | undefined): void {
+    this.attentionProvider = provider;
   }
 
   start() {

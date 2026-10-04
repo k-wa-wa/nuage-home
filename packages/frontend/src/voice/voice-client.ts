@@ -91,6 +91,10 @@ export class VoiceClient {
     return this.running;
   }
 
+  setAttentionProvider(provider: (() => boolean) | undefined): void {
+    this.recorder.setAttentionProvider(provider);
+  }
+
   /** WebSocket を接続し、タスクや通知の常時同期を開始する */
   connect(): void {
     if (this.ws) return;
@@ -98,7 +102,7 @@ export class VoiceClient {
     this.ws = ws;
 
     ws.onopen = () => {
-      this.sendLocation();
+      void this.sendLocationIfGranted();
       if (this.running) {
         this.send({ type: "voice_start" });
       }
@@ -134,12 +138,12 @@ export class VoiceClient {
     }, 3000);
   }
 
-  async start(): Promise<void> {
+  async start(existingStream?: MediaStream): Promise<void> {
     if (this.running) return;
     this.running = true;
     this.cb.onStateChange("connecting");
 
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (!existingStream && !navigator.mediaDevices?.getUserMedia) {
       this.stop(
         new Error("マイク（getUserMedia）が使えない。localhost か HTTPS で開く必要がある。"),
       );
@@ -149,7 +153,7 @@ export class VoiceClient {
     // ユーザー操作の直下でマイクと再生コンテキストを初期化する
     try {
       await this.player.warmup();
-      await this.recorder.start();
+      await this.recorder.start(existingStream);
     } catch (err) {
       this.stop(new Error(`マイクの起動に失敗した: ${String(err)}`));
       return;
@@ -160,6 +164,31 @@ export class VoiceClient {
     } else {
       this.send({ type: "voice_start" });
     }
+  }
+
+  /**
+   * 既に許可されている場合のみ位置情報を送信する（勝手に許可ダイアログを出さない）
+   */
+  async sendLocationIfGranted(): Promise<void> {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    try {
+      if (navigator.permissions) {
+        const perm = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+        if (perm.state !== "granted") return;
+      } else {
+        return;
+      }
+    } catch {
+      return;
+    }
+    this.sendLocation();
+  }
+
+  /**
+   * 明示的に位置情報を要求・送信する
+   */
+  requestLocation(): void {
+    this.sendLocation();
   }
 
   private sendLocation(): void {

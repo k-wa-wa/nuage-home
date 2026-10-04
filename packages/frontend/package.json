@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@nuage-home/shared": "*",
     "dompurify": "^3.4.16",
     "marked": "^18.0.14",
@@ -19,10 +20,13 @@
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
     "@types/jsdom": "^30.0.0",
+    "@types/qrcode-terminal": "^0.12.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^29.1.1",
+    "qrcode-terminal": "^0.12.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   }
