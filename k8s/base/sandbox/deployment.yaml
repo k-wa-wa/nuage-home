@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-runner
+  labels:
+    app: sandbox-runner
+    app.kubernetes.io/name: nuage-home
+    app.kubernetes.io/component: sandbox-runner
+  annotations:
+    keel.sh/policy: force
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: "@every 2m"
+    keel.sh/monitorContainers: "runner"
+    keel.sh/matchTag: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sandbox-runner
+  template:
+    metadata:
+      labels:
+        app: sandbox-runner
+        app.kubernetes.io/name: nuage-home
+        app.kubernetes.io/component: sandbox-runner
+    spec:
+      containers:
+        - name: runner
+          image: ghcr.io/k-wa-wa/nuage-home-sandbox:latest
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: "1Gi"

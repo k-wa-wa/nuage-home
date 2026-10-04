@@ -145,7 +145,10 @@ details pre {
 .floating-modal {
   position: fixed;
   width: 320px;
-  max-width: calc(100vw - 32px);
+  min-width: 260px;
+  min-height: 140px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   background: rgba(21, 25, 32, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -157,6 +160,7 @@ details pre {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: contain;
   z-index: 10;
   pointer-events: auto;
   transform-origin: center top;
@@ -222,4 +226,51 @@ details pre {
   padding: 12px 14px;
   max-height: min(420px, 45vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* リサイズされたモーダル: 高さを flex で親全体に追従させ、本文領域でスクロール */
+.floating-modal.is-resized .modal-body {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.floating-modal.is-resizing {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 右下リサイズハンドル */
+.modal-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 3px;
+  color: var(--muted);
+  opacity: 0.35;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+  z-index: 2;
+}
+
+.modal-resize-handle svg {
+  display: block;
+  pointer-events: none;
+}
+
+.modal-resize-handle:hover,
+.modal-resize-handle.resizing {
+  opacity: 1;
+  color: var(--accent);
 }

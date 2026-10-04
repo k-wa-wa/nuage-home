@@ -43,6 +43,8 @@ export class MockLivePort implements LivePort {
             "|ライト|電気|照明|フロアライト|電球|テープライト|カーテン|部屋|消して|つけて|点けて|開けて|閉めて";
         } else if (app === "research") {
           extra = "|調べ|検索|調査|最新|比較|おすすめ|ググ";
+        } else if (app === "sandbox") {
+          extra = "|計算|グラフ|プロット|描画|パイソン|python|コード|スクリプト|シェル|bash";
         }
         return { tool: "add_task", app, pattern: new RegExp(`${app}${extra}`, "i") };
       });
@@ -64,6 +66,8 @@ export class MockLivePort implements LivePort {
               "|ライト|電気|照明|フロアライト|電球|テープライト|カーテン|部屋|消して|つけて|点けて|開けて|閉めて";
           } else if (app === "research") {
             extra = "|調べ|検索|調査|最新|比較|おすすめ|ググ";
+          } else if (app === "sandbox") {
+            extra = "|計算|グラフ|プロット|描画|パイソン|python|コード|スクリプト|シェル|bash";
           }
           return { tool: t.name, pattern: new RegExp(`${app}${extra}`, "i") };
         });

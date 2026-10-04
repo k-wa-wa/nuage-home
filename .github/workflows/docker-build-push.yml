@@ -27,3 +27,11 @@ jobs:
       context: .
       file: ./Dockerfile.frontend
       image: ghcr.io/${{ github.repository }}-frontend
+
+  sandbox:
+    name: Sandbox
+    uses: k-wa-wa/nuage-workspace/.github/workflows/docker-build-push.yml@master
+    with:
+      context: .
+      file: ./Dockerfile.sandbox
+      image: ghcr.io/${{ github.repository }}-sandbox

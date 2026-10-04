@@ -19,4 +19,7 @@ configMapGenerator:
       - LITELLM_API_KEY=dummy
       - LITELLM_MODEL=auto
       - BWPROXY_URL=http://bare-web-proxy-service.bare-web-proxy.svc.cluster.local
+      - SEARXNG_URL=http://searxng.searxng.svc.cluster.local:8080
       - GEMINI_LIVE_MODEL=models/gemini-3.8-live
+      - SANDBOX_TARGET=deployment/sandbox-runner
+      - SANDBOX_NAMESPACE=nuage-home

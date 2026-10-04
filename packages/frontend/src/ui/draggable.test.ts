@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { bringToFront, resetHighestZIndex, setupDraggable } from "./draggable.ts";
+import { bringToFront, resetHighestZIndex, setupDraggable, setupResizable } from "./draggable.ts";
 
 describe("draggable", () => {
   beforeEach(() => {
@@ -81,5 +81,120 @@ describe("draggable", () => {
 
     cleanup1();
     cleanup2();
+  });
+
+  it("setupResizable で右下ハンドルをドラッグしてサイズを変更できる", () => {
+    const modalEl = document.createElement("section");
+    modalEl.className = "floating-modal";
+    modalEl.style.width = "300px";
+    modalEl.style.height = "200px";
+    const handleEl = document.createElement("div");
+    handleEl.className = "modal-resize-handle";
+    modalEl.appendChild(handleEl);
+    document.body.appendChild(modalEl);
+
+    // getBoundingClientRect のモック
+    modalEl.getBoundingClientRect = () => ({
+      left: 100,
+      top: 100,
+      right: 400,
+      bottom: 300,
+      width: 300,
+      height: 200,
+      x: 100,
+      y: 100,
+      toJSON: () => {},
+    });
+
+    const cleanup = setupResizable(modalEl, handleEl, { minWidth: 200, minHeight: 100 });
+
+    // ドラッグ開始
+    const downEvent = new MouseEvent("pointerdown", {
+      clientX: 400,
+      clientY: 300,
+      button: 0,
+      bubbles: true,
+    }) as PointerEvent;
+    handleEl.dispatchEvent(downEvent);
+
+    expect(modalEl.classList.contains("is-resizing")).toBe(true);
+    expect(modalEl.classList.contains("is-resized")).toBe(true);
+    expect(handleEl.classList.contains("resizing")).toBe(true);
+
+    // +50px, +60px ドラッグ
+    const moveEvent = new MouseEvent("pointermove", {
+      clientX: 450,
+      clientY: 360,
+      bubbles: true,
+    }) as PointerEvent;
+    handleEl.dispatchEvent(moveEvent);
+
+    expect(modalEl.style.width).toBe("350px");
+    expect(modalEl.style.height).toBe("260px");
+
+    // ドラッグ終了
+    const upEvent = new MouseEvent("pointerup", {
+      clientX: 450,
+      clientY: 360,
+      bubbles: true,
+    }) as PointerEvent;
+    handleEl.dispatchEvent(upEvent);
+
+    expect(modalEl.classList.contains("is-resizing")).toBe(false);
+    expect(handleEl.classList.contains("resizing")).toBe(false);
+    expect(modalEl.classList.contains("is-resized")).toBe(true);
+
+    cleanup();
+  });
+
+  it("setupResizable で最小幅・最小高さ未満には縮まない", () => {
+    const modalEl = document.createElement("section");
+    modalEl.className = "floating-modal";
+    const handleEl = document.createElement("div");
+    handleEl.className = "modal-resize-handle";
+    modalEl.appendChild(handleEl);
+    document.body.appendChild(modalEl);
+
+    modalEl.getBoundingClientRect = () => ({
+      left: 100,
+      top: 100,
+      right: 400,
+      bottom: 300,
+      width: 300,
+      height: 200,
+      x: 100,
+      y: 100,
+      toJSON: () => {},
+    });
+
+    const cleanup = setupResizable(modalEl, handleEl, { minWidth: 260, minHeight: 140 });
+
+    const downEvent = new MouseEvent("pointerdown", {
+      clientX: 400,
+      clientY: 300,
+      button: 0,
+      bubbles: true,
+    }) as PointerEvent;
+    handleEl.dispatchEvent(downEvent);
+
+    // -200px 縮めようとする
+    const moveEvent = new MouseEvent("pointermove", {
+      clientX: 200,
+      clientY: 100,
+      bubbles: true,
+    }) as PointerEvent;
+    handleEl.dispatchEvent(moveEvent);
+
+    expect(modalEl.style.width).toBe("260px");
+    expect(modalEl.style.height).toBe("140px");
+
+    const upEvent = new MouseEvent("pointerup", {
+      clientX: 200,
+      clientY: 100,
+      bubbles: true,
+    }) as PointerEvent;
+    handleEl.dispatchEvent(upEvent);
+
+    cleanup();
   });
 });

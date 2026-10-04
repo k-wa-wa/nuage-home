@@ -115,3 +115,99 @@ export function setupDraggable(
     headerEl.removeEventListener("pointercancel", stopDragging);
   };
 }
+
+export interface SetupResizableOptions {
+  minWidth?: number;
+  minHeight?: number;
+}
+
+/**
+ * モーダル要素を右下ハンドルのドラッグでサイズ変更可能にする。
+ * アンマウント時にリスナーを解除するクリーンアップ関数を返す。
+ */
+export function setupResizable(
+  modalEl: HTMLElement,
+  handleEl: HTMLElement,
+  options: SetupResizableOptions = {},
+): () => void {
+  const minWidth = options.minWidth ?? 260;
+  const minHeight = options.minHeight ?? 140;
+
+  let isResizing = false;
+  let startX = 0;
+  let startY = 0;
+  let startWidth = 0;
+  let startHeight = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    e.stopPropagation();
+
+    isResizing = true;
+    try {
+      handleEl.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ポインターキャプチャ未対応環境は無視
+    }
+    handleEl.classList.add("resizing");
+    modalEl.classList.add("is-resizing");
+    modalEl.classList.add("is-resized");
+    bringToFront(modalEl);
+
+    const rect = modalEl.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    startX = e.clientX;
+    startY = e.clientY;
+    startWidth = rect.width;
+    startHeight = rect.height;
+
+    // right / bottom 配置の場合は left / top に固定してリサイズ時の位置崩れを防止
+    modalEl.style.left = `${initialLeft}px`;
+    modalEl.style.top = `${initialTop}px`;
+    modalEl.style.right = "auto";
+    modalEl.style.bottom = "auto";
+  };
+
+  const onPointerMove = (e: PointerEvent) => {
+    if (!isResizing) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    const maxWidth = Math.max(minWidth, window.innerWidth - initialLeft - 8);
+    const maxHeight = Math.max(minHeight, window.innerHeight - initialTop - 8);
+
+    const nextWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+    const nextHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
+
+    modalEl.style.width = `${nextWidth}px`;
+    modalEl.style.height = `${nextHeight}px`;
+  };
+
+  const stopResizing = (e: PointerEvent) => {
+    if (!isResizing) return;
+    isResizing = false;
+    handleEl.classList.remove("resizing");
+    modalEl.classList.remove("is-resizing");
+    try {
+      handleEl.releasePointerCapture(e.pointerId);
+    } catch {
+      // ポインターキャプチャ解除時の例外は無視
+    }
+  };
+
+  handleEl.addEventListener("pointerdown", onPointerDown);
+  handleEl.addEventListener("pointermove", onPointerMove);
+  handleEl.addEventListener("pointerup", stopResizing);
+  handleEl.addEventListener("pointercancel", stopResizing);
+
+  return () => {
+    handleEl.removeEventListener("pointerdown", onPointerDown);
+    handleEl.removeEventListener("pointermove", onPointerMove);
+    handleEl.removeEventListener("pointerup", stopResizing);
+    handleEl.removeEventListener("pointercancel", stopResizing);
+  };
+}

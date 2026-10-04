@@ -1,6 +1,7 @@
 import websocketPlugin from "@fastify/websocket";
 import Fastify from "fastify";
 import { createResearchAgent, createResearchTools } from "./agents/research/index.ts";
+import { createSandboxAgent, createSandboxTools } from "./agents/sandbox/index.ts";
 import {
   createSmartHomeAgent,
   createSmartHomeTools,
@@ -12,6 +13,7 @@ import { TUNING } from "./constants.ts";
 import { OrchestrationHub } from "./conversation/hub.ts";
 import { createLiteLlmChat } from "./llm/client.ts";
 import { createLlmSummarizer, plainSummarizer, withFallback } from "./tasks/summarizer.ts";
+import { createKubectlExecutor } from "./tools/sandbox.ts";
 
 const config = loadConfig();
 const app = Fastify({ logger: true });
@@ -34,6 +36,17 @@ registerRoutes(app, {
           createSmartHomeAgent({
             chat,
             tools: createSmartHomeTools(new SwitchBotClient(config.switchbot)),
+            logger: app.log,
+          }),
+        ]
+      : []),
+    ...(config.sandbox
+      ? [
+          createSandboxAgent({
+            chat,
+            tools: createSandboxTools(
+              createKubectlExecutor(config.sandbox.target, config.sandbox.namespace),
+            ),
             logger: app.log,
           }),
         ]

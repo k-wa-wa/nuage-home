@@ -18,6 +18,11 @@ export interface SwitchBotConfig {
   secret: string;
 }
 
+export interface SandboxConfig {
+  target: string;
+  namespace: string;
+}
+
 export interface Config {
   port: number;
   llm: LlmConfig;
@@ -31,6 +36,7 @@ export interface Config {
     wsUrl: string;
   };
   switchbot?: SwitchBotConfig;
+  sandbox?: SandboxConfig;
 }
 
 export function loadConfig(): Config {
@@ -55,6 +61,16 @@ export function loadConfig(): Config {
     switchbot = { token: switchbotToken, secret: switchbotSecret };
   }
 
+  const sandboxTarget = process.env.SANDBOX_TARGET?.trim();
+  const sandboxNamespace = process.env.SANDBOX_NAMESPACE?.trim();
+  let sandbox: SandboxConfig | undefined;
+  if (sandboxTarget || sandboxNamespace) {
+    if (!sandboxTarget || !sandboxNamespace) {
+      throw new Error("SANDBOX_TARGET and SANDBOX_NAMESPACE must both be provided");
+    }
+    sandbox = { target: sandboxTarget, namespace: sandboxNamespace };
+  }
+
   return {
     port,
     llm,
@@ -65,6 +81,7 @@ export function loadConfig(): Config {
       wsUrl: `${geminiLiveBaseUrl.replace(/^http/, "ws").replace(/\/$/, "")}${GEMINI_LIVE.wsPath}`,
     },
     switchbot,
+    sandbox,
   };
 }
 

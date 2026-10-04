@@ -5,4 +5,5 @@
 
 export { createMockAutopilot } from "./autopilot/mock.ts";
 export { createMockResearch } from "./research/mock.ts";
+export { createMockSandbox } from "./sandbox/mock.ts";
 export { createMockSmartHome } from "./smart-home/mock.ts";

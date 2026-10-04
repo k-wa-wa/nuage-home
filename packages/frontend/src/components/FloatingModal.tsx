@@ -1,5 +1,10 @@
 import { type ReactNode, useEffect, useRef } from "react";
-import { bringToFront, type InitialPosition, setupDraggable } from "../ui/draggable.ts";
+import {
+  bringToFront,
+  type InitialPosition,
+  setupDraggable,
+  setupResizable,
+} from "../ui/draggable.ts";
 
 export type { InitialPosition };
 
@@ -11,10 +16,11 @@ export interface FloatingModalProps {
   onClose?: () => void;
   className?: string;
   isOpen?: boolean;
+  resizable?: boolean;
 }
 
 /**
- * ドラッグ移動可能な浮動モーダルコンポーネント。
+ * ドラッグ移動および右下ドラッグでのリサイズが可能な浮動モーダルコンポーネント。
  * 音声モードとサンドボックスの両方で共通のデザイン言語を提供する。
  */
 export function FloatingModal({
@@ -25,17 +31,28 @@ export function FloatingModal({
   onClose,
   className = "",
   isOpen = true,
+  resizable = true,
 }: FloatingModalProps) {
   const modalRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<HTMLDivElement>(null);
   const initialPosRef = useRef(initialPosition);
 
-  // 初回マウント時のみドラッグリスナーを登録し、初期位置を設定する
+  // 初回マウント時のみドラッグリスナーおよびリサイズリスナーを登録
   useEffect(() => {
-    if (modalRef.current && headerRef.current) {
-      return setupDraggable(modalRef.current, headerRef.current, initialPosRef.current);
+    if (!modalRef.current || !headerRef.current) return;
+
+    const cleanupDrag = setupDraggable(modalRef.current, headerRef.current, initialPosRef.current);
+    let cleanupResize: (() => void) | undefined;
+    if (resizable && resizeRef.current) {
+      cleanupResize = setupResizable(modalRef.current, resizeRef.current);
     }
-  }, []);
+
+    return () => {
+      cleanupDrag();
+      cleanupResize?.();
+    };
+  }, [resizable]);
 
   // 表示されるたびに手前（最前面）に出す
   useEffect(() => {
@@ -73,6 +90,23 @@ export function FloatingModal({
         )}
       </div>
       <div className="modal-body">{children}</div>
+      {resizable && (
+        <div
+          ref={resizeRef}
+          className="modal-resize-handle"
+          title="ドラッグしてサイズ変更"
+          aria-hidden="true"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path
+              d="M9 1L1 9M9 5L5 9M9 9L9 9.01"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+      )}
     </section>
   );
 }

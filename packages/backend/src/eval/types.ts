@@ -27,7 +27,7 @@ export interface E2EScenario {
     /** Live が呼び出すべきツール名 */
     tool: "add_task";
     /** 対象エージェント名 */
-    app: "research" | "smart_home" | "autopilot";
+    app: "research" | "smart_home" | "autopilot" | "sandbox";
     /** Live の初期相槌（目安・トーン） */
     ackSpeech: string;
     /** 専門エージェントの完了出力 */

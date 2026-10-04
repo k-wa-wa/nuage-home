@@ -24,6 +24,7 @@ spec:
         app.kubernetes.io/name: nuage-home
         app.kubernetes.io/component: backend
     spec:
+      serviceAccountName: backend
       containers:
         - name: backend
           image: ghcr.io/k-wa-wa/nuage-home-backend:latest

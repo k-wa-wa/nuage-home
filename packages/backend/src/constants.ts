@@ -37,6 +37,12 @@ export const TUNING = {
     /** ページ取得で LLM に渡す本文の最大文字数 */
     pageMaxChars: 6000,
   },
+  sandbox: {
+    /** サンドボックスコマンド実行のタイムアウト */
+    timeoutMs: 30_000,
+    /** サンドボックスエージェントがツールを呼べる最大回数 */
+    maxToolSteps: 8,
+  },
   mock: {
     /** モック Live が応答を返し始めるまでの遅延 */
     liveResponseDelayMs: 600,
