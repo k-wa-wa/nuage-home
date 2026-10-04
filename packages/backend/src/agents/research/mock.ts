@@ -1,5 +1,7 @@
 import type { TaskOutput } from "@nuage-home/shared";
 import { matchScenarioOutput } from "../../eval/mock-adapter.ts";
+import { ToolRegistry } from "../../tools/registry.ts";
+import type { ToolDefinition } from "../../tools/types.ts";
 import type { AppAgent } from "../types.ts";
 
 /**
@@ -52,4 +54,45 @@ function mockResearchResult(instruction: string): TaskOutput {
       },
     };
   });
+}
+
+/**
+ * 外部検索を行わないモック調査ツール群を生成する。
+ */
+export function createMockResearchTools(): ToolRegistry {
+  const mockWebSearch: ToolDefinition = {
+    name: "web_search",
+    description:
+      "Web 上の最新情報・ニュース・話題を検索し、上位の結果（タイトル・URL・抜粋）を得る",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "検索キーワード（空白区切り）" },
+      },
+      required: ["query"],
+    },
+    execute: async (args) => {
+      const q = String(args.query ?? "");
+      return `1. ${q}に関する最新動向\n   https://example.com/1\n   ${q}についての概要と調査結果の抜粋である。`;
+    },
+  };
+
+  const mockFetchPage: ToolDefinition = {
+    name: "fetch_page",
+    description:
+      "Web ページを開いて本文を読む。web_search で見つけたページの詳細を確認するときに使う",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "読むページの URL（http または https）" },
+      },
+      required: ["url"],
+    },
+    execute: async (args) => {
+      const url = String(args.url ?? "");
+      return `${url} のページ本文: 調査に必要な詳細情報と関連データが記載されている。`;
+    },
+  };
+
+  return new ToolRegistry([mockWebSearch, mockFetchPage]);
 }

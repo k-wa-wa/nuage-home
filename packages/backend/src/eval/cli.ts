@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { type Config, loadConfig } from "../config.ts";
+import { GeminiLivePort } from "../live/gemini.ts";
 import { computeScenarioDiff } from "./diff.ts";
 import { createRealAgents } from "./real-agents.ts";
 import { type EvaluationItem, printTerminalReport, writeMarkdownReport } from "./reporter.ts";
@@ -17,6 +18,14 @@ function parseArgs() {
     if (val === "real" || val === "mock") mode = val;
   }
 
+  // Live の実行モード（デフォルトは real、--live=mock でモック Live を使用）
+  let live: "mock" | "real" = "real";
+  const liveArg = args.find((a) => a.startsWith("--live="));
+  if (liveArg) {
+    const val = liveArg.split("=")[1];
+    if (val === "real" || val === "mock") live = val;
+  }
+
   let scenarioId: string | undefined;
   const scenarioArg = args.find((a) => a.startsWith("--scenario="));
   if (scenarioArg) {
@@ -29,16 +38,16 @@ function parseArgs() {
     outPath = resolve(process.cwd(), outArg.split("=")[1]);
   }
 
-  return { mode, scenarioId, outPath };
+  return { mode, live, scenarioId, outPath };
 }
 
 async function main() {
-  const { mode, scenarioId, outPath } = parseArgs();
+  const { mode, live, scenarioId, outPath } = parseArgs();
 
-  console.log(`[Eval] Mode: ${mode}`);
+  console.log(`[Eval] Mode: ${mode}, Live: ${live}`);
 
   let config: Config | null = null;
-  if (mode === "real") {
+  if (mode === "real" || live === "real") {
     try {
       config = loadConfig();
     } catch (err) {
@@ -51,6 +60,10 @@ async function main() {
 
   const effectiveMode = config && mode === "real" ? "real" : "mock";
   const realAgents = config && effectiveMode === "real" ? createRealAgents(config) : undefined;
+  const realLive =
+    config && live === "real" && effectiveMode === "real"
+      ? new GeminiLivePort(config.geminiLive)
+      : undefined;
 
   const targetScenarios = scenarioId
     ? SCENARIOS.filter((s) => s.id.includes(scenarioId) || s.name.includes(scenarioId))
@@ -72,6 +85,7 @@ async function main() {
     const actual = await runScenario(scenario, {
       mode: effectiveMode,
       realAgents,
+      realLive,
       timeoutMs: effectiveMode === "real" ? 60000 : 10000,
     });
     const diff = computeScenarioDiff(scenario, actual);

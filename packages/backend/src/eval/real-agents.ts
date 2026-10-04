@@ -1,58 +1,28 @@
-import { createResearchAgent, createResearchTools } from "../agents/research/index.ts";
-import {
-  createSmartHomeAgent,
-  createSmartHomeTools,
-  SwitchBotClient,
-} from "../agents/smart-home/index.ts";
+import { createMockResearchTools, createResearchAgent } from "../agents/research/index.ts";
+import { createMockSmartHomeTools, createSmartHomeAgent } from "../agents/smart-home/index.ts";
 import type { AppAgent } from "../agents/types.ts";
 import type { Config } from "../config.ts";
 import { createLiteLlmChat } from "../llm/client.ts";
 
 /**
- * 実環境で動作するエージェント群を構築する。
- * - research: 実 SearXNG + bwproxy + 実 LiteLLM
- * - smart_home: SwitchBot 設定があれば実機操作、なければ実 LLM による解釈・応答
- * - autopilot: 実 LLM による状況確認・応答
+ * 評価用のエージェント群を構築する。
+ * - LLM: 実 LiteLLM チャットを使用
+ * - Tools: 実機操作や外部検索等の副作用を防ぐため、モックツールを使用
  */
 export function createRealAgents(config: Config): AppAgent[] {
   const chat = createLiteLlmChat(config.llm);
 
   const research = createResearchAgent({
     chat,
-    tools: createResearchTools(config.searxngUrl, config.bwproxyUrl),
+    tools: createMockResearchTools(),
     logger: { info: () => {} },
   });
 
-  const smartHome: AppAgent = config.switchbot
-    ? createSmartHomeAgent({
-        chat,
-        tools: createSmartHomeTools(new SwitchBotClient(config.switchbot)),
-        logger: { info: () => {} },
-      })
-    : {
-        name: "smart_home",
-        description: "照明（フロアライト・電球・テープライト）やカーテン等の家電操作",
-        ask: async (instruction) => {
-          const res = await chat(
-            [
-              {
-                role: "system",
-                content: [
-                  "あなたはスマートホームの家電操作エージェントである。",
-                  "ユーザーの家電操作指示（照明の点灯/消灯、カーテンの開閉等）を解釈し、操作を完了した旨を音声向けに報告せよ。",
-                  "【要件】:",
-                  "- 丁寧な敬語（です・ます調）を使うこと。常体（〜したよ等）は避けること。",
-                  "- 音声で読み上げるため、1文（40文字以内）で極めて簡潔にすること。",
-                  "- レポートは不要。",
-                ].join("\n"),
-              },
-              { role: "user", content: instruction },
-            ],
-            [],
-          );
-          return { speech: res.content?.trim() || "家電の操作を完了しました。" };
-        },
-      };
+  const smartHome: AppAgent = createSmartHomeAgent({
+    chat,
+    tools: createMockSmartHomeTools(),
+    logger: { info: () => {} },
+  });
 
   const autopilot: AppAgent = {
     name: "autopilot",
