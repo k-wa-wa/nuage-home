@@ -1,14 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  GestureDetector,
+  type GestureState,
+  type GestureType,
+  getGestureEmoji,
+  getGestureLabel,
+} from "../vision/gesture-detector.ts";
 import { LookDetector, type LookState } from "../vision/look-detector.ts";
 import { type SoundType, TestSoundPlayer } from "./synth.ts";
 
 export function CameraTestApp() {
   const [detectorReady, setDetectorReady] = useState(false);
+  const [gestureReady, setGestureReady] = useState(false);
   const [detectorError, setDetectorError] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [soundType, setSoundType] = useState<SoundType>("chord");
   const [volume, setVolume] = useState(0.2);
   const [useGracePeriod, setUseGracePeriod] = useState(true);
+
+  // テスト用モーダルの開閉状態（ピンチで閉じる/開く検証用）
+  const [testModalOpen, setTestModalOpen] = useState(true);
+  const [lastGesture, setLastGesture] = useState<{
+    gesture: GestureType;
+    time: string;
+  } | null>(null);
 
   // チューニング可能な閾値パラメータ
   const [yawThreshold, setYawThreshold] = useState(14); // 左右首振り許容角（度）
@@ -28,16 +43,30 @@ export function CameraTestApp() {
     gazeLooking: false,
     lastLookingTime: 0,
   });
+
+  const [gestureState, setGestureState] = useState<GestureState>({
+    hasHand: false,
+    handX: 0.5,
+    handY: 0.5,
+    indexPinchRatio: 1.0,
+    middlePinchRatio: 1.0,
+    isPinchingIndex: false,
+    isPinchingMiddle: false,
+    lastGesture: null,
+    lastGestureTime: 0,
+  });
+
   const [logs, setLogs] = useState<
-    { id: number; time: string; text: string; kind: "unmute" | "mute" | "info" }[]
+    { id: number; time: string; text: string; kind: "unmute" | "mute" | "info" | "gesture" }[]
   >([]);
 
   const detectorRef = useRef<LookDetector | null>(null);
+  const gestureDetectorRef = useRef<GestureDetector | null>(null);
   const soundPlayerRef = useRef<TestSoundPlayer | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const logIdRef = useRef(0);
 
-  const addLog = useCallback((text: string, kind: "unmute" | "mute" | "info") => {
+  const addLog = useCallback((text: string, kind: "unmute" | "mute" | "info" | "gesture") => {
     const time = new Date().toLocaleTimeString("ja-JP", {
       hour12: false,
       fractionalSecondDigits: 2,
@@ -103,8 +132,63 @@ export function CameraTestApp() {
 
         setDetectorReady(true);
         addLog("カメラ検出器が準備完了しました（頭部＆目線判定が有効）", "info");
+
+        // ピンチ（Air Tap）検出器の初期化（同一のビデオ要素を流用、40ms/25fps で超高速サンプリング）
+        if (videoEl) {
+          addLog("マイクロジェスチャー検出器を初期化中...", "info");
+          const gestureDetector = new GestureDetector({
+            intervalMs: 40,
+            minConfidence: 0.4,
+            gestureCooldownMs: 400,
+          });
+          gestureDetectorRef.current = gestureDetector;
+
+          await gestureDetector.start(videoEl);
+          if (!mounted) {
+            gestureDetector.stop();
+            return;
+          }
+
+          setGestureReady(true);
+          addLog(
+            "マイクロジェスチャー検出器が準備完了しました（👌 人差し指ピンチ: 閉じる / ✌️ 中指ピンチ: 開く）",
+            "info",
+          );
+
+          const stateCleanup = gestureDetector.onStateChange((newGestureState) => {
+            setGestureState(newGestureState);
+          });
+
+          // ジェスチャー操作の監視（親指＋人差し指ピンチでDismiss、親指＋中指ピンチで再オープン）
+          const gestureCleanup = gestureDetector.onGesture((gesture) => {
+            const time = new Date().toLocaleTimeString("ja-JP", {
+              hour12: false,
+              fractionalSecondDigits: 2,
+            });
+            setLastGesture({ gesture, time });
+
+            if (gesture === "Pinch_Index") {
+              setTestModalOpen(false);
+              addLog(
+                `👌 [ピンチ] ${getGestureLabel(gesture)} を検出 → テストモーダルを閉じました (Dismiss)`,
+                "gesture",
+              );
+            } else if (gesture === "Pinch_Middle") {
+              setTestModalOpen(true);
+              addLog(
+                `✌️ [ピンチ] ${getGestureLabel(gesture)} を検出 → テストモーダルを開きました`,
+                "gesture",
+              );
+            }
+          });
+
+          return () => {
+            stateCleanup();
+            gestureCleanup();
+          };
+        }
       } catch (err) {
-        console.error("LookDetector 起動失敗:", err);
+        console.error("カメラ・検出器 起動失敗:", err);
         setDetectorError(err instanceof Error ? err.message : String(err));
         addLog(`エラー: ${err instanceof Error ? err.message : String(err)}`, "info");
       }
@@ -120,6 +204,7 @@ export function CameraTestApp() {
       mounted = false;
       cleanup();
       detector.stop();
+      gestureDetectorRef.current?.stop();
     };
   }, [addLog, yawThreshold, pitchThreshold, gazeThreshold, graceMs]);
 
@@ -204,6 +289,12 @@ export function CameraTestApp() {
           </span>
           <span className={`status-sub-chip ${state.gazeLooking ? "ok" : "ng"}`}>
             目線: {state.gazeLooking ? "正面" : "逸脱"}
+          </span>
+          <span className={`status-sub-chip ${lastGesture ? "ok" : ""}`}>
+            ピンチ:{" "}
+            {lastGesture
+              ? `${getGestureEmoji(lastGesture.gesture)} ${lastGesture.gesture === "Pinch_Index" ? "人差し指ピンチ" : "中指ピンチ"}`
+              : "待機中"}
           </span>
         </div>
         <div className="camera-header-nav">
@@ -404,6 +495,180 @@ export function CameraTestApp() {
                 onChange={(e) => handleVolumeChange(Number(e.target.value))}
               />
             </div>
+          </section>
+
+          {/* 手・マイクロジェスチャー認識パネル */}
+          <section className="gesture-card panel">
+            <div className="card-header">
+              <h2>ピンチ操作（Air Tap / 微小ジェスチャー）</h2>
+              <span className="chip" data-state={gestureReady ? "ok" : "pending"}>
+                {gestureReady ? "超高速検出中 (約25fps)" : "初期化中..."}
+              </span>
+            </div>
+
+            <div className="gesture-main-display">
+              <div
+                className={`gesture-emoji-large ${
+                  lastGesture || gestureState.isPinchingIndex || gestureState.isPinchingMiddle
+                    ? "has-gesture"
+                    : ""
+                }`}
+              >
+                {lastGesture
+                  ? getGestureEmoji(lastGesture.gesture)
+                  : gestureState.isPinchingIndex
+                    ? "👌"
+                    : gestureState.isPinchingMiddle
+                      ? "✌️"
+                      : "✋"}
+              </div>
+              <div className="gesture-info-meta">
+                <div className="gesture-title">
+                  {lastGesture
+                    ? getGestureLabel(lastGesture.gesture)
+                    : gestureState.hasHand
+                      ? gestureState.isPinchingIndex
+                        ? "👌 親指＋人差し指ピンチ中！"
+                        : gestureState.isPinchingMiddle
+                          ? "✌️ 親指＋中指ピンチ中！"
+                          : "手を認識中: 親指と人差し指をチョンと合わせてください"
+                      : "カメラに手をかざしてください"}
+                </div>
+                <div className="gesture-subtitle">
+                  {gestureState.hasHand
+                    ? `人差し指ピンチ比率: ${gestureState.indexPinchRatio.toFixed(2)} (閾値: 0.24) | 中指比率: ${gestureState.middlePinchRatio.toFixed(2)}`
+                    : "親指と人差し指をつまんで閉じる / 親指と中指をつまんで開く"}
+                </div>
+              </div>
+            </div>
+
+            {/* リアルタイムピンチ近接度メーター */}
+            <div className="swipe-section-title">指先近接度メーター（小さいほど接触）:</div>
+            <div className="pinch-meters-container">
+              <div className="pinch-meter-row">
+                <div className="pinch-meter-header">
+                  <span className="pinch-meter-label">親指 ↔ 人差し指 (閉じる):</span>
+                  <span
+                    className={`pinch-meter-value ${gestureState.isPinchingIndex ? "is-pinching" : ""}`}
+                  >
+                    {gestureState.hasHand
+                      ? `${gestureState.indexPinchRatio.toFixed(2)} ${
+                          gestureState.isPinchingIndex ? "👌 PINCH ACTIVE" : ""
+                        }`
+                      : "--"}
+                  </span>
+                </div>
+                <div className="pinch-meter-track">
+                  <div
+                    className="pinch-meter-threshold-line"
+                    style={{ left: `${(0.24 / 1.2) * 100}%` }}
+                    title="ピンチ検出閾値 (0.24)"
+                  />
+                  <div
+                    className={`pinch-meter-fill ${
+                      gestureState.isPinchingIndex ? "is-active" : ""
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (gestureState.indexPinchRatio / 1.2) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="pinch-meter-row">
+                <div className="pinch-meter-header">
+                  <span className="pinch-meter-label">親指 ↔ 中指 (開く):</span>
+                  <span
+                    className={`pinch-meter-value ${gestureState.isPinchingMiddle ? "is-pinching" : ""}`}
+                  >
+                    {gestureState.hasHand
+                      ? `${gestureState.middlePinchRatio.toFixed(2)} ${
+                          gestureState.isPinchingMiddle ? "✌️ PINCH ACTIVE" : ""
+                        }`
+                      : "--"}
+                  </span>
+                </div>
+                <div className="pinch-meter-track">
+                  <div
+                    className="pinch-meter-threshold-line"
+                    style={{ left: `${(0.24 / 1.2) * 100}%` }}
+                    title="ピンチ検出閾値 (0.24)"
+                  />
+                  <div
+                    className={`pinch-meter-fill ${
+                      gestureState.isPinchingMiddle ? "is-active" : ""
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (gestureState.middlePinchRatio / 1.2) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ジェスチャー動作インジケーター */}
+            <div className="swipe-section-title">ピンチ動作インジケーター:</div>
+            <div
+              className="swipe-indicators-grid"
+              style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
+            >
+              <div
+                className={`swipe-target-badge ${
+                  lastGesture?.gesture === "Pinch_Index" || gestureState.isPinchingIndex
+                    ? "is-detected"
+                    : ""
+                }`}
+              >
+                <span className="target-icon">👌</span>
+                <span className="target-label">人差し指ピンチ (閉じる)</span>
+              </div>
+              <div
+                className={`swipe-target-badge ${
+                  lastGesture?.gesture === "Pinch_Middle" || gestureState.isPinchingMiddle
+                    ? "is-detected"
+                    : ""
+                }`}
+              >
+                <span className="target-icon">✌️</span>
+                <span className="target-label">中指ピンチ (開く)</span>
+              </div>
+            </div>
+
+            {/* ピンチで閉じる体験テスト用モーダル */}
+            <div className="swipe-section-title">モーダルのピンチ操作体験:</div>
+            {testModalOpen ? (
+              <div className="test-modal-card">
+                <div className="test-modal-header">
+                  <span className="test-modal-title">📑 動作確認用レポートモーダル</span>
+                  <button
+                    type="button"
+                    className="test-modal-close"
+                    onClick={() => setTestModalOpen(false)}
+                    title="閉じる"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="test-modal-desc">
+                  画面の前で<strong>親指と人差し指を「チョン」と合わせる（ピンチ）</strong>
+                  と、このモーダルが自動で閉じます（Dismiss）。腕を振る必要はありません。
+                </p>
+                <div className="test-modal-hint">
+                  💡 閉じた後、<strong>親指と中指をピンチ</strong>すると再オープンします。
+                </div>
+              </div>
+            ) : (
+              <div className="test-modal-closed-banner">
+                <span>モーダルは閉じられました</span>
+                <button
+                  type="button"
+                  className="btn-reopen-modal"
+                  onClick={() => setTestModalOpen(true)}
+                >
+                  再表示（または ✌️ 中指ピンチ）
+                </button>
+              </div>
+            )}
           </section>
 
           {/* 厳しさ・感度チューニングパネル */}

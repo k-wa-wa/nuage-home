@@ -1,3 +1,4 @@
+import { globSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import basicSsl from "@vitejs/plugin-basic-ssl";
@@ -39,6 +40,14 @@ function qrcodePlugin(): Plugin {
   };
 }
 
+// プロジェクト直下の全 HTML ファイルを動的に収集（新規 HTML 追加時も config 修正不要）
+const htmlEntries = Object.fromEntries(
+  globSync("*.html", { cwd: import.meta.dirname }).map((file) => {
+    const name = file.replace(/\.html$/, "");
+    return [name === "index" ? "main" : name, resolve(import.meta.dirname, file)];
+  }),
+);
+
 export default defineConfig({
   plugins: [react(), basicSsl(), qrcodePlugin()],
   server: {
@@ -54,13 +63,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      input: {
-        main: resolve(import.meta.dirname, "index.html"),
-        // タスク・通知の統制をテキストで体験するサンドボックス（docs/design/voice-task-orchestration.md）
-        sandbox: resolve(import.meta.dirname, "sandbox.html"),
-        // カメラ視線検知と音声ミュートの動作検証ページ
-        camera: resolve(import.meta.dirname, "camera.html"),
-      },
+      input: htmlEntries,
     },
   },
 });
