@@ -374,6 +374,13 @@ export function SandboxApp() {
         >
           リセット
         </button>
+        <a
+          href="/camera.html"
+          className="sb-camera-link"
+          title="カメラ視線検知・音声ミュート検証ページを開く"
+        >
+          📷 カメラ検証
+        </a>
       </header>
 
       <div className="sb-stage">

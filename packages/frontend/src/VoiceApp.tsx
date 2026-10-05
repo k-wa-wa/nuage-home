@@ -58,6 +58,10 @@ export function VoiceApp() {
     faceDetected: false,
     yawDeg: 0,
     pitchDeg: 0,
+    headLooking: false,
+    gazeX: 0,
+    gazeY: 0,
+    gazeLooking: false,
     lastLookingTime: 0,
   });
 

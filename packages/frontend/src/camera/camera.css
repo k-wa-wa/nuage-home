@@ -1,0 +1,473 @@
+/* カメラ視線検証ページ（camera.html）のスタイル */
+
+.camera-app {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(21, 25, 32, 0.95);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.camera-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.camera-header-left h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.2px;
+}
+
+.camera-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.camera-badge[data-looking="true"] {
+  border-color: var(--ok);
+  color: var(--ok);
+  background: rgba(63, 185, 80, 0.12);
+  box-shadow: 0 0 12px rgba(63, 185, 80, 0.25);
+}
+
+.status-sub-chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  transition: all 0.15s ease;
+}
+
+.status-sub-chip.ok {
+  border-color: rgba(63, 185, 80, 0.4);
+  color: var(--ok);
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.status-sub-chip.ng {
+  border-color: rgba(248, 81, 73, 0.3);
+  color: var(--muted);
+  background: rgba(248, 81, 73, 0.05);
+}
+
+.camera-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-link {
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.nav-link:hover {
+  background: rgba(110, 168, 254, 0.1);
+  border-color: rgba(110, 168, 254, 0.25);
+}
+
+.camera-main {
+  flex: 1;
+  padding: 20px 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .camera-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* 左カラム: ビデオプレビュー */
+.camera-preview-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.video-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* 鏡像（ミラー表示） */
+}
+
+.video-placeholder {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px;
+}
+
+.video-placeholder.error {
+  color: var(--danger);
+}
+
+.video-placeholder p {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.video-placeholder small {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.viewport-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.look-crosshair {
+  width: 80px;
+  height: 80px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.look-crosshair.is-focused {
+  border-color: var(--ok);
+  border-style: solid;
+  transform: scale(1.08);
+  box-shadow: 0 0 16px rgba(63, 185, 80, 0.4);
+}
+
+.crosshair-target {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.look-crosshair.is-focused .crosshair-target {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+
+/* 角度メーター */
+.angles-panel {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.angle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.angle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.angle-label strong {
+  font-size: 14px;
+  color: #fff;
+  min-width: 38px;
+}
+
+.angle-threshold {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.angle-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.angle-bar-track {
+  position: relative;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.angle-safe-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(63, 185, 80, 0.15);
+  border-left: 1px dashed rgba(63, 185, 80, 0.5);
+  border-right: 1px dashed rgba(63, 185, 80, 0.5);
+}
+
+.angle-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  transition: left 0.08s linear;
+}
+
+.angle-indicator.ok {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+
+.angle-indicator.warn {
+  background: var(--warn);
+  box-shadow: 0 0 8px var(--warn);
+}
+
+.angle-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* 右カラム: コントロール & ログ */
+.camera-controls-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sound-status-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.sound-status-chip.playing {
+  border-color: var(--ok);
+  color: var(--ok);
+  background: rgba(63, 185, 80, 0.1);
+}
+
+.sound-status-chip.muted {
+  border-color: var(--muted);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.control-group {
+  margin-bottom: 14px;
+}
+
+.btn-sound-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(110, 168, 254, 0.12);
+  color: var(--accent);
+  transition: all 0.15s ease;
+}
+
+.btn-sound-toggle:hover {
+  background: rgba(110, 168, 254, 0.22);
+  border-color: var(--accent);
+}
+
+.btn-sound-toggle.is-active {
+  background: rgba(248, 81, 73, 0.12);
+  border-color: rgba(248, 81, 73, 0.4);
+  color: var(--danger);
+}
+
+.btn-sound-toggle.is-active:hover {
+  background: rgba(248, 81, 73, 0.22);
+  border-color: var(--danger);
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+}
+
+.control-row select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.control-row input[type="range"] {
+  width: 160px;
+}
+
+.checkbox-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.hint-text {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 280px;
+  text-align: right;
+}
+
+/* ログカード */
+.log-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+}
+
+.btn-clear-logs {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.log-list-container {
+  flex: 1;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px;
+}
+
+.log-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.log-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.log-item.log-unmute {
+  background: rgba(63, 185, 80, 0.1);
+  color: #7ee787;
+}
+
+.log-item.log-mute {
+  background: rgba(248, 81, 73, 0.08);
+  color: #ffa198;
+}
+
+.log-item.log-info {
+  color: var(--muted);
+}
+
+.log-time {
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.log-text {
+  word-break: break-word;
+}

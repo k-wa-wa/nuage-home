@@ -58,6 +58,8 @@ export default defineConfig({
         main: resolve(import.meta.dirname, "index.html"),
         // タスク・通知の統制をテキストで体験するサンドボックス（docs/design/voice-task-orchestration.md）
         sandbox: resolve(import.meta.dirname, "sandbox.html"),
+        // カメラ視線検知と音声ミュートの動作検証ページ
+        camera: resolve(import.meta.dirname, "camera.html"),
       },
     },
   },

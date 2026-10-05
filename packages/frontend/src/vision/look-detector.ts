@@ -3,18 +3,22 @@ import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 export interface LookDetectorOptions {
   /** 判定間隔（ミリ秒）。既定 120ms（約 8fps） */
   intervalMs?: number;
-  /** 正面とみなす左右の首振り許容角（度）。既定 22度 */
+  /** 正面とみなす左右の首振り許容角（度）。既定 14度（厳格化） */
   maxYawDeg?: number;
-  /** 正面とみなす上下の首振り許容角（度）。既定 20度 */
+  /** 正面とみなす上下の首振り許容角（度）。既定 14度（厳格化） */
   maxPitchDeg?: number;
-  /** 画面から視線が外れても「見ている」とみなす継続猶予（ミリ秒）。既定 800ms */
+  /** 視線の水平方向ズレ許容比率（0〜1.0）。既定 0.28 */
+  maxGazeOffsetX?: number;
+  /** 視線の垂直方向ズレ許容比率（0〜1.0）。既定 0.32 */
+  maxGazeOffsetY?: number;
+  /** 画面から視線が外れても「見ている」とみなす継続猶予（ミリ秒）。既定 400ms（厳格化） */
   attentionGraceMs?: number;
 }
 
 export interface LookState {
   /** 画面を見ているか（ヒステリシス込み） */
   isLooking: boolean;
-  /** 現在のフレームで正面を向いているか */
+  /** 現在のフレームで正面を向いているか（顔向き & 目線の両方） */
   rawLooking: boolean;
   /** 顔が検出されているか */
   faceDetected: boolean;
@@ -22,6 +26,14 @@ export interface LookState {
   yawDeg: number;
   /** 推定 Pitch（度、正: 下向き、負: 上向き） */
   pitchDeg: number;
+  /** 顔（頭部）の向きが正面か */
+  headLooking: boolean;
+  /** 瞳（黒目）の水平ズレ比率（-1.0〜+1.0、0が中央） */
+  gazeX: number;
+  /** 瞳（黒目）の垂直ズレ比率（-1.0〜+1.0、0が中央） */
+  gazeY: number;
+  /** 目線（黒目）が正面を向いているか */
+  gazeLooking: boolean;
   /** 最後に正面を向いた時刻（タイムスタンプ） */
   lastLookingTime: number;
 }
@@ -33,6 +45,7 @@ const MODEL_ASSET_URL =
 /**
  * Webカメラと MediaPipe FaceLandmarker を使用し、
  * ユーザーが画面（カメラ）に顔・視線を向けているか（Attention）をローカルで判定する検出器。
+ * 頭部の首振り角度（Yaw/Pitch）と瞳（Iris）の視線ズレの両方を複合して厳密に判定する。
  */
 export class LookDetector {
   private video: HTMLVideoElement | null = null;
@@ -42,9 +55,11 @@ export class LookDetector {
   private isRunning = false;
 
   private readonly intervalMs: number;
-  private readonly maxYawDeg: number;
-  private readonly maxPitchDeg: number;
-  private readonly attentionGraceMs: number;
+  private maxYawDeg: number;
+  private maxPitchDeg: number;
+  private maxGazeOffsetX: number;
+  private maxGazeOffsetY: number;
+  private attentionGraceMs: number;
 
   private state: LookState = {
     isLooking: false,
@@ -52,6 +67,10 @@ export class LookDetector {
     faceDetected: false,
     yawDeg: 0,
     pitchDeg: 0,
+    headLooking: false,
+    gazeX: 0,
+    gazeY: 0,
+    gazeLooking: false,
     lastLookingTime: 0,
   };
 
@@ -60,9 +79,32 @@ export class LookDetector {
 
   constructor(options: LookDetectorOptions = {}) {
     this.intervalMs = options.intervalMs ?? 120;
-    this.maxYawDeg = options.maxYawDeg ?? 22;
-    this.maxPitchDeg = options.maxPitchDeg ?? 20;
-    this.attentionGraceMs = options.attentionGraceMs ?? 800;
+    this.maxYawDeg = options.maxYawDeg ?? 14;
+    this.maxPitchDeg = options.maxPitchDeg ?? 14;
+    this.maxGazeOffsetX = options.maxGazeOffsetX ?? 0.28;
+    this.maxGazeOffsetY = options.maxGazeOffsetY ?? 0.32;
+    this.attentionGraceMs = options.attentionGraceMs ?? 400;
+  }
+
+  /**
+   * 判定閾値を動的に変更する（検証ページや設定画面用）
+   */
+  setThresholds(options: Partial<LookDetectorOptions>): void {
+    if (options.maxYawDeg !== undefined) this.maxYawDeg = options.maxYawDeg;
+    if (options.maxPitchDeg !== undefined) this.maxPitchDeg = options.maxPitchDeg;
+    if (options.maxGazeOffsetX !== undefined) this.maxGazeOffsetX = options.maxGazeOffsetX;
+    if (options.maxGazeOffsetY !== undefined) this.maxGazeOffsetY = options.maxGazeOffsetY;
+    if (options.attentionGraceMs !== undefined) this.attentionGraceMs = options.attentionGraceMs;
+  }
+
+  getThresholds(): Required<Omit<LookDetectorOptions, "intervalMs">> {
+    return {
+      maxYawDeg: this.maxYawDeg,
+      maxPitchDeg: this.maxPitchDeg,
+      maxGazeOffsetX: this.maxGazeOffsetX,
+      maxGazeOffsetY: this.maxGazeOffsetY,
+      attentionGraceMs: this.attentionGraceMs,
+    };
   }
 
   private bypassUntil = 0;
@@ -182,6 +224,10 @@ export class LookDetector {
       faceDetected: false,
       yawDeg: 0,
       pitchDeg: 0,
+      headLooking: false,
+      gazeX: 0,
+      gazeY: 0,
+      gazeLooking: false,
       lastLookingTime: 0,
     };
 
@@ -201,14 +247,18 @@ export class LookDetector {
 
       let faceDetected = false;
       let rawLooking = false;
+      let headLooking = false;
+      let gazeLooking = false;
       let yawDeg = 0;
       let pitchDeg = 0;
+      let gazeX = 0;
+      let gazeY = 0;
 
       if (result.faceLandmarks && result.faceLandmarks.length > 0) {
         faceDetected = true;
         const landmarks = result.faceLandmarks[0];
 
-        // ランドマーク幾何による角度推定
+        // 1. ランドマーク幾何による頭部角度推定
         // 1: 鼻先, 168: 眉間, 152: あご, 234: 右顔輪郭(画面左), 454: 左顔輪郭(画面右)
         const nose = landmarks[1];
         const rightCheek = landmarks[234];
@@ -217,41 +267,84 @@ export class LookDetector {
         const chin = landmarks[152];
 
         if (nose && rightCheek && leftCheek && glabella && chin) {
-          // 左右の顔幅
           const faceWidth = Math.abs(leftCheek.x - rightCheek.x);
-          // 顔の中心線
           const midX = (leftCheek.x + rightCheek.x) / 2;
-          // 鼻先の中心からのズレ比率（-0.5〜0.5）
           const yawRatio = faceWidth > 0 ? (nose.x - midX) / faceWidth : 0;
-          // ズレ比率を度数に変換（概算）
           yawDeg = Math.round(yawRatio * 90);
 
-          // 上下の顔の高さ
           const faceHeight = Math.abs(chin.y - glabella.y);
           const midY = (chin.y + glabella.y) / 2;
           const pitchRatio = faceHeight > 0 ? (nose.y - midY) / faceHeight : 0;
           pitchDeg = Math.round(pitchRatio * 90);
-
-          // 正面向きの判定
-          rawLooking = Math.abs(yawDeg) <= this.maxYawDeg && Math.abs(pitchDeg) <= this.maxPitchDeg;
         }
 
-        // 行列が取得できる場合は補正
+        // 行列が取得できる場合は回転角を補正
         const matrix = result.facialTransformationMatrixes?.[0];
         if (matrix?.data && matrix.data.length >= 16) {
           const m = matrix.data;
-          // column-major または row-major から回転角を抽出
-          // m[0]=r00, m[1]=r10, m[2]=r20, m[4]=r01, m[5]=r11, m[6]=r21, m[8]=r02, m[9]=r12, m[10]=r22
           const rotYaw = Math.atan2(m[2], m[10]) * (180 / Math.PI);
           const rotPitch = -Math.asin(Math.max(-1, Math.min(1, m[6]))) * (180 / Math.PI);
           if (!Number.isNaN(rotYaw) && !Number.isNaN(rotPitch)) {
-            // 幾何計算と回転行列の平均でロバストにする
             yawDeg = Math.round((yawDeg + rotYaw) / 2);
             pitchDeg = Math.round((pitchDeg + rotPitch) / 2);
-            rawLooking =
-              Math.abs(yawDeg) <= this.maxYawDeg && Math.abs(pitchDeg) <= this.maxPitchDeg;
           }
         }
+
+        headLooking = Math.abs(yawDeg) <= this.maxYawDeg && Math.abs(pitchDeg) <= this.maxPitchDeg;
+
+        // 2. 虹彩（Iris）ランドマークによる目線判定
+        // 468: 右目虹彩中心, 33: 右目尻(外), 133: 右目頭(内), 159: 右上まぶた, 145: 右下まぶた
+        // 473: 左目虹彩中心, 362: 左目頭(内), 263: 左目尻(外), 386: 左上まぶた, 374: 左下まぶた
+        const irisR = landmarks[468];
+        const irisL = landmarks[473];
+        const outerR = landmarks[33];
+        const innerR = landmarks[133];
+        const topR = landmarks[159];
+        const bottomR = landmarks[145];
+
+        const innerL = landmarks[362];
+        const outerL = landmarks[263];
+        const topL = landmarks[386];
+        const bottomL = landmarks[374];
+
+        if (irisR && irisL && outerR && innerR && innerL && outerL) {
+          // 右目の水平オフセット比率（-1.0〜+1.0: 0が中央）
+          const eyeWidthR = Math.abs(innerR.x - outerR.x);
+          const eyeCenterXR = (innerR.x + outerR.x) / 2;
+          const offsetXR = eyeWidthR > 0 ? (irisR.x - eyeCenterXR) / (eyeWidthR / 2) : 0;
+
+          // 左目の水平オフセット比率
+          const eyeWidthL = Math.abs(outerL.x - innerL.x);
+          const eyeCenterXL = (outerL.x + innerL.x) / 2;
+          const offsetXL = eyeWidthL > 0 ? (irisL.x - eyeCenterXL) / (eyeWidthL / 2) : 0;
+
+          // 垂直オフセット比率
+          let offsetYR = 0;
+          let offsetYL = 0;
+          if (topR && bottomR && topL && bottomL) {
+            const eyeHeightR = Math.abs(bottomR.y - topR.y);
+            const eyeCenterYR = (bottomR.y + topR.y) / 2;
+            offsetYR = eyeHeightR > 0 ? (irisR.y - eyeCenterYR) / (eyeHeightR / 2) : 0;
+
+            const eyeHeightL = Math.abs(bottomL.y - topL.y);
+            const eyeCenterYL = (bottomL.y + topL.y) / 2;
+            offsetYL = eyeHeightL > 0 ? (irisL.y - eyeCenterYL) / (eyeHeightL / 2) : 0;
+          }
+
+          // 両目の平均ズレ量（丸め）
+          gazeX = Math.round(((offsetXR + offsetXL) / 2) * 100) / 100;
+          gazeY = Math.round(((offsetYR + offsetYL) / 2) * 100) / 100;
+
+          // 目線が正面を向いているか判定
+          gazeLooking =
+            Math.abs(gazeX) <= this.maxGazeOffsetX && Math.abs(gazeY) <= this.maxGazeOffsetY;
+        } else {
+          // 虹彩が取得できない場合は頭部向きのみでフォールバック
+          gazeLooking = headLooking;
+        }
+
+        // 頭部向きと目線の両方が正面を向いている時だけ「見ている（rawLooking）」とする
+        rawLooking = headLooking && gazeLooking;
       }
 
       const currentTime = Date.now();
@@ -271,6 +364,10 @@ export class LookDetector {
         faceDetected,
         yawDeg,
         pitchDeg,
+        headLooking,
+        gazeX,
+        gazeY,
+        gazeLooking,
         lastLookingTime: this.state.lastLookingTime,
       };
 

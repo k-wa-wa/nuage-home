@@ -42,4 +42,14 @@ describe("LookDetector", () => {
     detector.bypassAttention(1000);
     expect(detector.isLookingAtScreen()).toBe(true);
   });
+
+  it("setThresholds で判定閾値を変更できる", () => {
+    const detector = new LookDetector();
+    expect(detector.getThresholds().maxYawDeg).toBe(14);
+    expect(detector.getThresholds().maxGazeOffsetX).toBe(0.28);
+
+    detector.setThresholds({ maxYawDeg: 10, maxGazeOffsetX: 0.2 });
+    expect(detector.getThresholds().maxYawDeg).toBe(10);
+    expect(detector.getThresholds().maxGazeOffsetX).toBe(0.2);
+  });
 });
